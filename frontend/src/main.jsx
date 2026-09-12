@@ -1,0 +1,96 @@
+import React from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+function App() {
+  const [selectedFile, setSelectedFile] = React.useState(null);
+  const [previewUrl, setPreviewUrl] = React.useState(null);
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadResult, setUploadResult] = React.useState(null);
+  const [errorMessage, setErrorMessage] = React.useState(null);
+
+  function selectFile(event) {
+    const file = event.target.files?.[0] ?? null;
+    setUploadResult(null);
+    setErrorMessage(null);
+    setSelectedFile(file);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(file ? URL.createObjectURL(file) : null);
+  }
+
+  async function uploadDocument() {
+    if (!selectedFile) {
+      setErrorMessage("Choose a JPG, PNG, or WEBP image first.");
+      return;
+    }
+    if (!SUPPORTED_IMAGE_TYPES.includes(selectedFile.type)) {
+      setErrorMessage("Choose a JPG, PNG, or WEBP image.");
+      return;
+    }
+    setIsUploading(true);
+    setUploadResult(null);
+    setErrorMessage(null);
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    try {
+      const response = await fetch(API_BASE_URL + "/api/documents/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail ?? "The upload could not be completed.");
+      setUploadResult(payload);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof TypeError
+          ? "Backend unavailable. Start the FastAPI server and try again."
+          : error.message,
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-50 px-5 py-12 text-slate-900">
+      <section className="mx-auto max-w-2xl rounded-2xl bg-white p-7 shadow-sm ring-1 ring-slate-200">
+        <p className="text-sm font-semibold tracking-wide text-blue-700">MODULE 1 · DOCUMENT UPLOAD</p>
+        <h1 className="mt-2 text-3xl font-bold">AI Document Screening System</h1>
+        <p className="mt-3 text-slate-600">Upload only synthetic, public, or explicitly consented document images.</p>
+        <label className="mt-7 block rounded-xl border-2 border-dashed border-slate-300 p-6 text-center hover:border-blue-500">
+          <span className="block font-medium">Choose a document image</span>
+          <span className="mt-1 block text-sm text-slate-500">JPG, PNG, or WEBP · maximum 10 MB</span>
+          <input className="mt-4 block w-full text-sm" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={selectFile} />
+        </label>
+        {selectedFile && <p className="mt-4 text-sm">Selected: <strong>{selectedFile.name}</strong></p>}
+        {previewUrl && <img className="mt-4 max-h-72 w-full rounded-lg object-contain ring-1 ring-slate-200" src={previewUrl} alt="Selected document preview" />}
+        <button className="mt-5 w-full rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400" type="button" disabled={!selectedFile || isUploading} onClick={uploadDocument}>
+          {isUploading ? "Uploading and preprocessing…" : "Upload document"}
+        </button>
+        {errorMessage && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{errorMessage}</p>}
+        {uploadResult && (
+          <section className="mt-5 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-950" aria-live="polite">
+            <h2 className="font-bold">Upload complete</h2>
+            <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
+              <dt>Stored filename</dt><dd className="break-all font-medium">{uploadResult.filename}</dd>
+              <dt>Content type</dt><dd className="font-medium">{uploadResult.content_type}</dd>
+              <dt>File size</dt><dd className="font-medium">{uploadResult.file_size} bytes</dd>
+              <dt>Original size</dt><dd className="font-medium">{uploadResult.original_width} × {uploadResult.original_height}</dd>
+              <dt>Processed size</dt><dd className="font-medium">{uploadResult.processed_width} × {uploadResult.processed_height}</dd>
+              <dt>Status</dt><dd className="font-medium">{uploadResult.preprocessing_status}</dd>
+            </dl>
+          </section>
+        )}
+      </section>
+    </main>
+  );
+}
+
+createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);
