@@ -7,6 +7,8 @@ from app.schemas.documents import DocumentUploadResponse
 from app.services.document.upload_service import store_and_preprocess_upload
 from app.services.ocr.ocr_service import extract_text
 from app.schemas.ocr import OCRResponse
+from app.schemas.validation import ValidationResponse
+from app.services.validation.validation_service import validate_document
 from fastapi.concurrency import run_in_threadpool
 from pathlib import Path
 
@@ -53,3 +55,13 @@ async def run_ocr_on_document(document_id: str) -> OCRResponse:
     except Exception as e:
         from fastapi import HTTPException
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{document_id}/validate", response_model=ValidationResponse, status_code=status.HTTP_200_OK)
+async def validate_document_endpoint(document_id: str) -> ValidationResponse:
+    """Run Document Validation on a previously uploaded document."""
+    # Obtain OCR data internally
+    ocr_result = await run_ocr_on_document(document_id)
+    
+    # Run validation
+    validation_result = validate_document(document_id, ocr_result)
+    return validation_result

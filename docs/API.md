@@ -78,6 +78,35 @@ Successful response: 200 OK
 **Privacy & Security Note**:
 OCR output might contain sensitive PII. Ensure raw outputs are not logged to the terminal or saved persistently beyond the API response payload. OCR extraction does not establish document authenticity.
 
+## Document Validation
+
+`POST /api/documents/{document_id}/validate`
+
+Validates an extracted document's internal consistency (including dates, format checking, and MRZ parsing/checksum validation). Note: This checks internal formatting and MRZ consistency, but does not establish document authenticity.
+
+Successful response: 200 OK
+
+```json
+{
+  "document_id": "generated-id.jpg",
+  "valid": true,
+  "status": "passed",
+  "checks": [
+    {
+      "check": "required_field_name",
+      "status": "passed",
+      "message": "Mandatory field 'name' is present."
+    },
+    {
+      "check": "mrz_passport_number_checksum",
+      "status": "passed",
+      "message": "MRZ passport number checksum is valid."
+    }
+  ],
+  "authenticity_warning": "Document validation checks internal consistency and formatting. It does not establish document authenticity."
+}
+```
+
 ## Health check
 
 `GET /api/health`

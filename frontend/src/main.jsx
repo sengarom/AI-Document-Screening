@@ -17,12 +17,19 @@ function App() {
   const [ocrResult, setOcrResult] = React.useState(null);
   const [ocrError, setOcrError] = React.useState(null);
 
+  // Validation State
+  const [isValidating, setIsValidating] = React.useState(false);
+  const [validationResult, setValidationResult] = React.useState(null);
+  const [validationError, setValidationError] = React.useState(null);
+
   function selectFile(event) {
     const file = event.target.files?.[0] ?? null;
     setUploadResult(null);
     setErrorMessage(null);
     setOcrResult(null);
     setOcrError(null);
+    setValidationResult(null);
+    setValidationError(null);
     setSelectedFile(file);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(file ? URL.createObjectURL(file) : null);
@@ -40,6 +47,8 @@ function App() {
     setIsUploading(true);
     setUploadResult(null);
     setErrorMessage(null);
+    setValidationResult(null);
+    setValidationError(null);
     const formData = new FormData();
     formData.append("file", selectedFile);
     try {
@@ -67,6 +76,8 @@ function App() {
     setIsOcrRunning(true);
     setOcrResult(null);
     setOcrError(null);
+    setValidationResult(null);
+    setValidationError(null);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/documents/${uploadResult.document_id}/ocr`, {
@@ -79,6 +90,27 @@ function App() {
       setOcrError(error.message);
     } finally {
       setIsOcrRunning(false);
+    }
+  }
+
+  async function runValidation() {
+    if (!uploadResult?.document_id) return;
+
+    setIsValidating(true);
+    setValidationResult(null);
+    setValidationError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/documents/${uploadResult.document_id}/validate`, {
+        method: "POST",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail ?? "Validation failed.");
+      setValidationResult(payload);
+    } catch (error) {
+      setValidationError(error.message);
+    } finally {
+      setIsValidating(false);
     }
   }
 
@@ -172,6 +204,47 @@ function App() {
                     <p className="text-slate-500 italic">No text detected</p>
                   )}
                 </div>
+                
+                <div className="mt-6 border-t border-indigo-200 pt-4">
+                  <button
+                    className="w-full rounded-lg bg-purple-600 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
+                    type="button"
+                    disabled={isValidating}
+                    onClick={runValidation}
+                  >
+                    {isValidating ? "Validating Document..." : "Validate Document"}
+                  </button>
+                </div>
+                
+                {validationError && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{validationError}</p>}
+                
+                {validationResult && (
+                  <div className="mt-6 rounded-lg bg-purple-50 p-4 text-purple-950">
+                    <h3 className="font-bold text-lg border-b border-purple-200 pb-2 mb-3 flex items-center justify-between">
+                      Validation Results
+                      <span className={`px-2 py-1 text-xs font-bold uppercase rounded-md ${validationResult.valid ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                        {validationResult.status}
+                      </span>
+                    </h3>
+                    
+                    <div className="mb-4 text-sm font-medium">
+                      Overall Valid: {validationResult.valid ? <span className="text-green-700">YES</span> : <span className="text-red-700">NO</span>}
+                    </div>
+                    
+                    <h4 className="font-semibold text-md mb-2">Checks</h4>
+                    <div className="bg-white p-3 rounded-md shadow-sm mb-4 space-y-2 max-h-64 overflow-y-auto">
+                      {validationResult.checks?.map((check, i) => (
+                        <div key={i} className={`p-2 rounded border text-sm ${check.status === 'passed' ? 'bg-green-50 border-green-200 text-green-900' : check.status === 'warning' ? 'bg-yellow-50 border-yellow-200 text-yellow-900' : 'bg-red-50 border-red-200 text-red-900'}`}>
+                          <div className="flex justify-between font-semibold mb-1">
+                            <span className="capitalize">{check.check.replace(/_/g, ' ')}</span>
+                            <span className="uppercase text-xs">{check.status}</span>
+                          </div>
+                          <div className="text-xs">{check.message}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </section>

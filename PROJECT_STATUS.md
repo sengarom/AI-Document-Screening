@@ -7,10 +7,16 @@ Prototype scope: educational/hackathon use only. The system assists human review
 - [x] Basic React/Vite frontend scaffold
 - [x] Module 1: document upload and image preprocessing
 - [ ] Document type detection
-- [ ] Module 2: OCR extraction (Implemented; dataset validation pending)
-- [ ] MRZ detection and parsing
-- [ ] Document validation
-- [ ] Simulated verification database
+- [x] Integrate PaddleOCR and FastAPI
+- [x] Field extraction (name, DOB, passport number, issue/expiry dates)
+- [x] Confidence score inclusion
+
+### Module 3: Document Validation
+- [x] Field presence and format validation
+- [x] Date logic (expired, future DOB, etc.)
+- [x] Checksum and MRZ parsing
+- [x] Cross-field consistency (Visual ↔ MRZ)
+- [x] Validation API endpoint integration
 - [ ] Tampering/manipulation detection
 - [ ] Face verification using only consented/synthetic data
 - [ ] Explainable risk scoring for human review
