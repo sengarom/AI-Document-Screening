@@ -7,6 +7,7 @@ class DocumentUploadResponse(BaseModel):
     """Metadata returned after a document image is stored and processed."""
 
     success: bool
+    document_id: str
     filename: str
     original_filename: str
     content_type: str

@@ -5,6 +5,10 @@ from fastapi import APIRouter, File, UploadFile, status
 from app.core.config import ORIGINAL_UPLOADS_DIR, PROCESSED_UPLOADS_DIR
 from app.schemas.documents import DocumentUploadResponse
 from app.services.document.upload_service import store_and_preprocess_upload
+from app.services.ocr.ocr_service import extract_text
+from app.schemas.ocr import OCRResponse
+from fastapi.concurrency import run_in_threadpool
+from pathlib import Path
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -19,6 +23,7 @@ async def upload_document(file: UploadFile = File(...)) -> DocumentUploadRespons
     )
     return DocumentUploadResponse(
         success=True,
+        document_id=stored_upload.document_id,
         filename=stored_upload.filename,
         original_filename=stored_upload.original_filename,
         content_type=stored_upload.content_type,
@@ -29,3 +34,22 @@ async def upload_document(file: UploadFile = File(...)) -> DocumentUploadRespons
         processed_height=stored_upload.preprocessing.processed_height,
         preprocessing_status="completed",
     )
+
+@router.post("/{document_id}/ocr", response_model=OCRResponse, status_code=status.HTTP_200_OK)
+async def run_ocr_on_document(document_id: str) -> OCRResponse:
+    """Run PaddleOCR extraction on a previously uploaded and processed document."""
+    # Find the processed image
+    stem = Path(document_id).stem
+    processed_file = PROCESSED_UPLOADS_DIR / f"{stem}_processed.png"
+
+    if not processed_file.exists():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Document not found or not processed.")
+
+    # Run OCR in threadpool to prevent blocking the async event loop
+    try:
+        result = await run_in_threadpool(extract_text, str(processed_file), document_id)
+        return result
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=str(e))

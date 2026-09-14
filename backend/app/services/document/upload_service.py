@@ -26,6 +26,7 @@ ALLOWED_FORMATS = {
 class StoredUpload:
     """Storage and processing details for one accepted upload."""
 
+    document_id: str
     filename: str
     original_filename: str
     content_type: str
@@ -123,6 +124,7 @@ async def store_and_preprocess_upload(
             ) from error
 
         return StoredUpload(
+            document_id=generated_stem,
             filename=original_path.name,
             original_filename=Path(upload.filename or "upload").name,
             content_type=ALLOWED_FORMATS[detected_format]["mime_type"],

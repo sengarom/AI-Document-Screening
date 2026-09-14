@@ -7,7 +7,7 @@ Prototype scope: educational/hackathon use only. The system assists human review
 - [x] Basic React/Vite frontend scaffold
 - [x] Module 1: document upload and image preprocessing
 - [ ] Document type detection
-- [ ] OCR extraction
+- [ ] Module 2: OCR extraction (Implemented; dataset validation pending)
 - [ ] MRZ detection and parsing
 - [ ] Document validation
 - [ ] Simulated verification database

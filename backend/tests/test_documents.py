@@ -41,6 +41,7 @@ def test_valid_jpg_upload_and_preprocessing(client_with_test_storage: TestClient
     body = response.json()
     assert response.status_code == 201
     assert body["success"] is True
+    assert "document_id" in body
     assert body["original_filename"] == "synthetic.jpg"
     assert body["filename"].endswith(".jpg")
     assert body["original_width"] == 120
