@@ -9,6 +9,8 @@ from app.services.ocr.ocr_service import extract_text
 from app.schemas.ocr import OCRResponse
 from app.schemas.validation import ValidationResponse
 from app.services.validation.validation_service import validate_document
+from app.schemas.tampering import TamperingResponse
+from app.services.tampering.tampering_service import analyze_document
 from fastapi.concurrency import run_in_threadpool
 from pathlib import Path
 
@@ -65,3 +67,25 @@ async def validate_document_endpoint(document_id: str) -> ValidationResponse:
     # Run validation
     validation_result = validate_document(document_id, ocr_result)
     return validation_result
+
+@router.post("/{document_id}/tampering", response_model=TamperingResponse, status_code=status.HTTP_200_OK)
+async def run_tampering_analysis(document_id: str) -> TamperingResponse:
+    """Run Document Tampering Detection on the original uploaded document."""
+    from fastapi import HTTPException
+    
+    stem = Path(document_id).stem
+    # Tampering MUST run on the original unaltered image (for EXIF, ELA, noise, etc.)
+    original_files = list(ORIGINAL_UPLOADS_DIR.glob(f"{stem}.*"))
+    original_files = [f for f in original_files if f.is_file() and not f.name.endswith(".uploading")]
+
+    if not original_files:
+        raise HTTPException(status_code=404, detail="Original document not found.")
+        
+    original_file = original_files[0]
+        
+    try:
+        # Run in threadpool to prevent blocking the async loop for heavy classical CV operations
+        result = await run_in_threadpool(analyze_document, document_id, str(original_file))
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

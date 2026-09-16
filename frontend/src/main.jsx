@@ -22,6 +22,11 @@ function App() {
   const [validationResult, setValidationResult] = React.useState(null);
   const [validationError, setValidationError] = React.useState(null);
 
+  // Tampering State
+  const [isTamperingRunning, setIsTamperingRunning] = React.useState(false);
+  const [tamperingResult, setTamperingResult] = React.useState(null);
+  const [tamperingError, setTamperingError] = React.useState(null);
+
   function selectFile(event) {
     const file = event.target.files?.[0] ?? null;
     setUploadResult(null);
@@ -30,6 +35,8 @@ function App() {
     setOcrError(null);
     setValidationResult(null);
     setValidationError(null);
+    setTamperingResult(null);
+    setTamperingError(null);
     setSelectedFile(file);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(file ? URL.createObjectURL(file) : null);
@@ -49,6 +56,8 @@ function App() {
     setErrorMessage(null);
     setValidationResult(null);
     setValidationError(null);
+    setTamperingResult(null);
+    setTamperingError(null);
     const formData = new FormData();
     formData.append("file", selectedFile);
     try {
@@ -78,6 +87,8 @@ function App() {
     setOcrError(null);
     setValidationResult(null);
     setValidationError(null);
+    setTamperingResult(null);
+    setTamperingError(null);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/documents/${uploadResult.document_id}/ocr`, {
@@ -111,6 +122,27 @@ function App() {
       setValidationError(error.message);
     } finally {
       setIsValidating(false);
+    }
+  }
+
+  async function runTampering() {
+    if (!uploadResult?.document_id) return;
+
+    setIsTamperingRunning(true);
+    setTamperingResult(null);
+    setTamperingError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/documents/${uploadResult.document_id}/tampering`, {
+        method: "POST",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail ?? "Tampering detection failed.");
+      setTamperingResult(payload);
+    } catch (error) {
+      setTamperingError(error.message);
+    } finally {
+      setIsTamperingRunning(false);
     }
   }
 
@@ -243,6 +275,52 @@ function App() {
                         </div>
                       ))}
                     </div>
+                    
+                    <div className="mt-6 border-t border-purple-200 pt-4">
+                      <button
+                        className="w-full rounded-lg bg-orange-600 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
+                        type="button"
+                        disabled={isTamperingRunning}
+                        onClick={runTampering}
+                      >
+                        {isTamperingRunning ? "Running Tampering Detection..." : "Run Tampering Detection"}
+                      </button>
+                    </div>
+
+                    {tamperingError && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{tamperingError}</p>}
+
+                    {tamperingResult && (
+                      <div className="mt-6 rounded-lg bg-orange-50 p-4 text-orange-950">
+                        <h3 className="font-bold text-lg border-b border-orange-200 pb-2 mb-3 flex items-center justify-between">
+                          Tampering Detection
+                          <span className={`px-2 py-1 text-xs font-bold uppercase rounded-md ${tamperingResult.severity === 'LOW' ? 'bg-green-200 text-green-800' : tamperingResult.severity === 'MODERATE' ? 'bg-yellow-200 text-yellow-800' : 'bg-red-200 text-red-800'}`}>
+                            {tamperingResult.severity} RISK
+                          </span>
+                        </h3>
+                        
+                        <div className="mb-4 text-sm font-medium flex items-center gap-4">
+                          <div>Evidence Score: <span className="text-lg font-bold">{(tamperingResult.tampering_score * 100).toFixed(0)}</span>/100</div>
+                          <div>Status: <span className="uppercase">{tamperingResult.overall_status}</span></div>
+                        </div>
+
+                        <div className="w-full bg-orange-200 rounded-full h-2.5 mb-6">
+                          <div className={`h-2.5 rounded-full ${tamperingResult.tampering_score < 0.3 ? 'bg-green-600' : tamperingResult.tampering_score < 0.7 ? 'bg-yellow-500' : 'bg-red-600'}`} style={{ width: `${Math.min(100, Math.max(0, tamperingResult.tampering_score * 100))}%` }}></div>
+                        </div>
+
+                        <h4 className="font-semibold text-md mb-2">Forensic Signals</h4>
+                        <div className="bg-white p-3 rounded-md shadow-sm space-y-2">
+                          {Object.entries(tamperingResult.signals || {}).map(([key, signal]) => (
+                            <div key={key} className={`p-2 rounded border text-sm ${signal.status === 'passed' ? 'bg-slate-50 border-slate-200' : signal.status === 'warning' ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
+                              <div className="flex justify-between font-semibold mb-1">
+                                <span className="capitalize">{key.replace(/_/g, ' ')}</span>
+                                <span className="text-xs">Score: {(signal.score * 100).toFixed(0)} (Conf: {(signal.confidence * 100).toFixed(0)}%)</span>
+                              </div>
+                              <div className="text-xs text-slate-700">{signal.explanation}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
