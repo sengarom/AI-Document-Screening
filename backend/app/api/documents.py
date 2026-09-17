@@ -11,6 +11,8 @@ from app.schemas.validation import ValidationResponse
 from app.services.validation.validation_service import validate_document
 from app.schemas.tampering import TamperingResponse
 from app.services.tampering.tampering_service import analyze_document
+from app.schemas.risk import RiskScoreRequest, RiskScoreResponse
+from app.services.risk.risk_service import calculate_risk
 from app.schemas.face import FaceVerificationResponse
 from app.services.face.face_service import verify_faces
 from fastapi.concurrency import run_in_threadpool
@@ -65,7 +67,7 @@ async def validate_document_endpoint(document_id: str) -> ValidationResponse:
     """Run Document Validation on a previously uploaded document."""
     # Obtain OCR data internally
     ocr_result = await run_ocr_on_document(document_id)
-    
+
     # Run validation
     validation_result = validate_document(document_id, ocr_result)
     return validation_result
@@ -74,7 +76,7 @@ async def validate_document_endpoint(document_id: str) -> ValidationResponse:
 async def run_tampering_analysis(document_id: str) -> TamperingResponse:
     """Run Document Tampering Detection on the original uploaded document."""
     from fastapi import HTTPException
-    
+
     stem = Path(document_id).stem
     # Tampering MUST run on the original unaltered image (for EXIF, ELA, noise, etc.)
     original_files = list(ORIGINAL_UPLOADS_DIR.glob(f"{stem}.*"))
@@ -82,9 +84,9 @@ async def run_tampering_analysis(document_id: str) -> TamperingResponse:
 
     if not original_files:
         raise HTTPException(status_code=404, detail="Original document not found.")
-        
+
     original_file = original_files[0]
-        
+
     try:
         # Run in threadpool to prevent blocking the async loop for heavy classical CV operations
         result = await run_in_threadpool(analyze_document, document_id, str(original_file))
@@ -96,7 +98,7 @@ async def run_tampering_analysis(document_id: str) -> TamperingResponse:
 async def verify_document_face(document_id: str, reference_image: UploadFile = File(...)) -> FaceVerificationResponse:
     """Verify the face in the document against a supplied reference selfie."""
     from fastapi import HTTPException
-    
+
     stem = Path(document_id).stem
     # Use the original unaltered image for best quality
     original_files = list(ORIGINAL_UPLOADS_DIR.glob(f"{stem}.*"))
@@ -104,17 +106,32 @@ async def verify_document_face(document_id: str, reference_image: UploadFile = F
 
     if not original_files:
         raise HTTPException(status_code=404, detail="Original document not found.")
-        
+
     original_file = original_files[0]
-    
+
     # Read reference image into memory
     ref_bytes = await reference_image.read()
     if not ref_bytes:
         raise HTTPException(status_code=400, detail="Reference image is empty.")
-        
+
     try:
         # Run in threadpool to prevent blocking the async loop
         result = await run_in_threadpool(verify_faces, document_id, str(original_file), ref_bytes)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{document_id}/risk-score", response_model=RiskScoreResponse, status_code=status.HTTP_200_OK)
+async def get_risk_score(document_id: str, request: RiskScoreRequest) -> RiskScoreResponse:
+    """Calculate the overall risk score based on provided upstream verification signals."""
+    from fastapi import HTTPException
+
+    # Ensure document_id matches the one in validation response
+    if document_id != request.validation_result.document_id:
+        raise HTTPException(status_code=400, detail="Path document_id does not match validation_result document_id.")
+
+    try:
+        # This is purely synchronous math, no need for threadpool
+        return calculate_risk(request)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Risk scoring failed due to an internal server error.")
