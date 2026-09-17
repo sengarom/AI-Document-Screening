@@ -17,8 +17,8 @@ Prototype scope: educational/hackathon use only. The system assists human review
 - [x] Checksum and MRZ parsing
 - [x] Cross-field consistency (Visual ↔ MRZ)
 - [x] Validation API endpoint integration
-- [ ] Tampering/manipulation detection
-- [ ] Face verification using only consented/synthetic data
+- [x] Tampering/manipulation detection (Classical heuristics)
+- [ ] Face verification using only consented/synthetic data (IN DEVELOPMENT)
 - [ ] Explainable risk scoring for human review
 - [ ] Explainable screening report
 - [ ] React dashboard

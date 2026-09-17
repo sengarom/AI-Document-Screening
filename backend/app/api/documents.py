@@ -11,6 +11,8 @@ from app.schemas.validation import ValidationResponse
 from app.services.validation.validation_service import validate_document
 from app.schemas.tampering import TamperingResponse
 from app.services.tampering.tampering_service import analyze_document
+from app.schemas.face import FaceVerificationResponse
+from app.services.face.face_service import verify_faces
 from fastapi.concurrency import run_in_threadpool
 from pathlib import Path
 
@@ -86,6 +88,33 @@ async def run_tampering_analysis(document_id: str) -> TamperingResponse:
     try:
         # Run in threadpool to prevent blocking the async loop for heavy classical CV operations
         result = await run_in_threadpool(analyze_document, document_id, str(original_file))
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{document_id}/face-verification", response_model=FaceVerificationResponse, status_code=status.HTTP_200_OK)
+async def verify_document_face(document_id: str, reference_image: UploadFile = File(...)) -> FaceVerificationResponse:
+    """Verify the face in the document against a supplied reference selfie."""
+    from fastapi import HTTPException
+    
+    stem = Path(document_id).stem
+    # Use the original unaltered image for best quality
+    original_files = list(ORIGINAL_UPLOADS_DIR.glob(f"{stem}.*"))
+    original_files = [f for f in original_files if f.is_file() and not f.name.endswith(".uploading")]
+
+    if not original_files:
+        raise HTTPException(status_code=404, detail="Original document not found.")
+        
+    original_file = original_files[0]
+    
+    # Read reference image into memory
+    ref_bytes = await reference_image.read()
+    if not ref_bytes:
+        raise HTTPException(status_code=400, detail="Reference image is empty.")
+        
+    try:
+        # Run in threadpool to prevent blocking the async loop
+        result = await run_in_threadpool(verify_faces, document_id, str(original_file), ref_bytes)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

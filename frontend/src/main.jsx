@@ -27,6 +27,13 @@ function App() {
   const [tamperingResult, setTamperingResult] = React.useState(null);
   const [tamperingError, setTamperingError] = React.useState(null);
 
+  // Face Verification State
+  const [referenceFile, setReferenceFile] = React.useState(null);
+  const [referencePreviewUrl, setReferencePreviewUrl] = React.useState(null);
+  const [isFaceVerifying, setIsFaceVerifying] = React.useState(false);
+  const [faceResult, setFaceResult] = React.useState(null);
+  const [faceError, setFaceError] = React.useState(null);
+
   function selectFile(event) {
     const file = event.target.files?.[0] ?? null;
     setUploadResult(null);
@@ -37,6 +44,11 @@ function App() {
     setValidationError(null);
     setTamperingResult(null);
     setTamperingError(null);
+    setFaceResult(null);
+    setFaceError(null);
+    setReferenceFile(null);
+    if (referencePreviewUrl) URL.revokeObjectURL(referencePreviewUrl);
+    setReferencePreviewUrl(null);
     setSelectedFile(file);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(file ? URL.createObjectURL(file) : null);
@@ -143,6 +155,40 @@ function App() {
       setTamperingError(error.message);
     } finally {
       setIsTamperingRunning(false);
+    }
+  }
+
+  function selectReferenceFile(event) {
+    const file = event.target.files?.[0] ?? null;
+    setFaceResult(null);
+    setFaceError(null);
+    setReferenceFile(file);
+    if (referencePreviewUrl) URL.revokeObjectURL(referencePreviewUrl);
+    setReferencePreviewUrl(file ? URL.createObjectURL(file) : null);
+  }
+
+  async function runFaceVerification() {
+    if (!uploadResult?.document_id || !referenceFile) return;
+
+    setIsFaceVerifying(true);
+    setFaceResult(null);
+    setFaceError(null);
+
+    const formData = new FormData();
+    formData.append("reference_image", referenceFile);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/documents/${uploadResult.document_id}/face-verification`, {
+        method: "POST",
+        body: formData,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail ?? "Face verification failed.");
+      setFaceResult(payload);
+    } catch (error) {
+      setFaceError(error.message);
+    } finally {
+      setIsFaceVerifying(false);
     }
   }
 
@@ -325,6 +371,60 @@ function App() {
                 )}
               </div>
             )}
+
+            {/* MODULE 5 - FACE VERIFICATION TEMPORARY UI */}
+            <div className="mt-8 border-t-2 border-slate-200 pt-6">
+              <h3 className="text-xl font-bold text-slate-800 mb-2">MODULE 5 — FACE VERIFICATION</h3>
+              <p className="text-sm text-slate-500 mb-4">Temporary Testing UI</p>
+              
+              <label className="block rounded-xl border-2 border-dashed border-slate-300 p-4 text-center hover:border-blue-500 bg-white">
+                <span className="block font-medium">Choose Reference / Selfie Image</span>
+                <input className="mt-2 block w-full text-sm" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={selectReferenceFile} />
+              </label>
+              
+              {referencePreviewUrl && (
+                <div className="mt-4">
+                  <img className="max-h-48 rounded-lg object-contain ring-1 ring-slate-200 mx-auto" src={referencePreviewUrl} alt="Reference preview" />
+                </div>
+              )}
+              
+              <button 
+                className="mt-4 w-full rounded-lg bg-teal-600 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400" 
+                type="button" 
+                disabled={!referenceFile || isFaceVerifying} 
+                onClick={runFaceVerification}
+              >
+                {isFaceVerifying ? "Verifying..." : "RUN FACE VERIFICATION"}
+              </button>
+
+              {faceError && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{faceError}</p>}
+
+              {faceResult && (
+                <div className="mt-6 rounded-lg bg-slate-800 p-5 text-slate-100">
+                  <h4 className="font-bold text-lg border-b border-slate-600 pb-2 mb-3">RESULT</h4>
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <dt className="text-slate-400">Status:</dt>
+                    <dd className="font-bold font-mono">{faceResult.status}</dd>
+                    
+                    <dt className="text-slate-400">Verified:</dt>
+                    <dd className="font-medium">{faceResult.verified ? "true" : "false"}</dd>
+                    
+                    <dt className="text-slate-400">Similarity Score:</dt>
+                    <dd className="font-medium">{faceResult.similarity_score?.toFixed(4) ?? "N/A"}</dd>
+                    
+                    <dt className="text-slate-400">Processing:</dt>
+                    <dd className="font-medium">{faceResult.processing_time_ms} ms</dd>
+                  </dl>
+                  
+                  <div className="mt-4 pt-3 border-t border-slate-600">
+                    <p className="text-slate-400 text-xs mb-1">Message:</p>
+                    <p className="text-sm font-medium">{faceResult.message}</p>
+                  </div>
+                  <p className="mt-3 text-xs text-slate-500 italic">Cosine similarity — not probability</p>
+                </div>
+              )}
+            </div>
+            
           </section>
         )}
       </section>
