@@ -15,6 +15,8 @@ from app.schemas.risk import RiskScoreRequest, RiskScoreResponse
 from app.services.risk.risk_service import calculate_risk
 from app.schemas.face import FaceVerificationResponse
 from app.services.face.face_service import verify_faces
+from app.schemas.report import ScreeningReportRequest, ScreeningReportResponse
+from app.services.report.report_service import generate_screening_report
 from fastapi.concurrency import run_in_threadpool
 from pathlib import Path
 
@@ -135,3 +137,26 @@ async def get_risk_score(document_id: str, request: RiskScoreRequest) -> RiskSco
         return calculate_risk(request)
     except Exception as e:
         raise HTTPException(status_code=500, detail="Risk scoring failed due to an internal server error.")
+
+@router.post("/{document_id}/screening-report", response_model=ScreeningReportResponse, status_code=status.HTTP_200_OK)
+async def get_screening_report(document_id: str, request: ScreeningReportRequest) -> ScreeningReportResponse:
+    """Generate the final structured screening report based on upstream results."""
+    from fastapi import HTTPException
+
+    # Document ID consistency check
+    if document_id != request.ocr_result.document_id:
+        raise HTTPException(status_code=400, detail="Path document_id does not match ocr_result document_id.")
+    if document_id != request.validation_result.document_id:
+        raise HTTPException(status_code=400, detail="Path document_id does not match validation_result document_id.")
+    if document_id != request.tampering_result.document_id:
+        raise HTTPException(status_code=400, detail="Path document_id does not match tampering_result document_id.")
+    if document_id != request.risk_result.document_id:
+        raise HTTPException(status_code=400, detail="Path document_id does not match risk_result document_id.")
+    if request.face_result is not None and document_id != request.face_result.document_id:
+        raise HTTPException(status_code=400, detail="Path document_id does not match face_result document_id.")
+
+    try:
+        # Synchronous report generation
+        return generate_screening_report(request)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to generate screening report due to an internal error.")
