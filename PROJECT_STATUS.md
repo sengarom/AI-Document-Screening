@@ -18,3 +18,6 @@
 - [x] Explainable screening report
 - [ ] React dashboard
 - [ ] Automated tests and deployment documentation
+
+## Future Work
+AI/synthetic-generation detection was investigated as a potential future extension but was not integrated because reliable validation requires additional real-world datasets and experimental evaluation.

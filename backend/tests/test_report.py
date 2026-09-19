@@ -54,7 +54,7 @@ def create_base_request(doc_id="doc123"):
 
 def test_report_clean():
     req = create_base_request()
-    resp = generate_screening_report(req)
+    resp = generate_screening_report("doc1", req)
     
     assert resp.document_id == "doc123"
     assert resp.overall_status == ScreeningStatus.CLEAR
@@ -73,7 +73,7 @@ def test_report_clean():
     
     face_finding = next(f for f in resp.findings if f.category == "Face Verification")
     assert face_finding.status == "Match"
-    assert "matched reference successfully" in face_finding.summary
+    assert "Face matched" in face_finding.summary
     
     assert resp.processing_time_ms >= 0
     assert "T" in resp.timestamp # Valid ISO
@@ -87,7 +87,7 @@ def test_report_review_medium():
         ValidationCheck(check="expiry_date", status=ValidationStatus.WARNING, message="Expires soon")
     ]
     
-    resp = generate_screening_report(req)
+    resp = generate_screening_report("doc1", req)
     assert resp.overall_status == ScreeningStatus.REVIEW
     
     val_finding = next(f for f in resp.findings if f.category == "Validation")
@@ -99,7 +99,7 @@ def test_report_review_high():
     req = create_base_request()
     req.risk_result.risk_level = RiskLevel.HIGH
     req.risk_result.risk_score = 60
-    resp = generate_screening_report(req)
+    resp = generate_screening_report("doc1", req)
     assert resp.overall_status == ScreeningStatus.REVIEW
 
 def test_report_high_risk_critical():
@@ -112,7 +112,7 @@ def test_report_high_risk_critical():
     req.face_result.similarity_score = -0.1
     req.face_result.message = "Did not match"
     
-    resp = generate_screening_report(req)
+    resp = generate_screening_report("doc1", req)
     assert resp.overall_status == ScreeningStatus.HIGH_RISK
     
     face_finding = next(f for f in resp.findings if f.category == "Face Verification")
@@ -125,7 +125,7 @@ def test_report_validation_failure():
     req.validation_result.checks = [
         ValidationCheck(check="mrz_checksum", status=ValidationStatus.FAILED, message="Checksum failed")
     ]
-    resp = generate_screening_report(req)
+    resp = generate_screening_report("doc1", req)
     val_finding = next(f for f in resp.findings if f.category == "Validation")
     assert val_finding.status == "Failed"
     assert "mrz_checksum: Checksum failed" in val_finding.details
@@ -138,7 +138,7 @@ def test_report_elevated_tampering():
         "ela": ForensicSignal(status=TamperingStatus.FAILED, score=0.9, confidence=0.8, explanation="High ELA variance")
     }
     
-    resp = generate_screening_report(req)
+    resp = generate_screening_report("doc1", req)
     tamp_finding = next(f for f in resp.findings if f.category == "Tampering")
     assert tamp_finding.status == "Failed"
     assert "(HIGH severity)" in tamp_finding.summary
@@ -148,7 +148,7 @@ def test_report_face_unavailable():
     req = create_base_request()
     req.face_result = None
     
-    resp = generate_screening_report(req)
+    resp = generate_screening_report("doc1", req)
     face_finding = next(f for f in resp.findings if f.category == "Face Verification")
     assert face_finding.status == "Unavailable"
     assert "was unavailable" in face_finding.summary.lower()
@@ -165,7 +165,7 @@ def test_report_multiple_findings():
         RiskFactor(category="Tampering", signal="WARNING", contribution=20, message="Suspicious pixels")
     ]
     
-    resp = generate_screening_report(req)
+    resp = generate_screening_report("doc1", req)
     assert len(resp.findings) == 4
     
     risk_finding = next(f for f in resp.findings if f.category == "Risk")
@@ -173,9 +173,11 @@ def test_report_multiple_findings():
 
 def test_deterministic_generation():
     req = create_base_request()
-    resp1 = generate_screening_report(req)
-    resp2 = generate_screening_report(req)
+    resp1 = generate_screening_report("doc1", req)
+    resp2 = generate_screening_report("doc1", req)
     
     assert resp1.overall_status == resp2.overall_status
     assert resp1.risk_score == resp2.risk_score
     assert len(resp1.findings) == len(resp2.findings)
+
+

@@ -12,10 +12,8 @@ from app.schemas.validation import ValidationStatus
 from app.schemas.tampering import TamperingStatus
 from app.schemas.face import FaceVerificationStatus
 
-def generate_screening_report(request: ScreeningReportRequest) -> ScreeningReportResponse:
+def generate_screening_report(document_id: str, request: ScreeningReportRequest, document_type: str = "PASSPORT") -> ScreeningReportResponse:
     start_time = time.time()
-    
-    document_id = request.risk_result.document_id
     
     # Map Risk Level to Screening Status
     if request.risk_result.risk_level == RiskLevel.LOW:
@@ -48,14 +46,13 @@ def generate_screening_report(request: ScreeningReportRequest) -> ScreeningRepor
     # 2. Tampering Findings
     t_status = request.tampering_result.overall_status.value.capitalize()
     t_sev = request.tampering_result.severity
-    t_details = [f"{sig_name}: {sig_data.explanation}" for sig_name, sig_data in request.tampering_result.signals.items() if sig_data.score > 0]
     findings.append(HumanReadableFinding(
         category="Tampering",
         status=t_status,
-        summary=f"Forensic analysis returned {t_status.lower()} ({t_sev} severity).",
-        details=t_details
+        summary=f"Tampering detection is {t_status.lower()} ({t_sev} severity).",
+        details=[f"{k}: {v.explanation}" for k, v in request.tampering_result.signals.items()]
     ))
-    
+
     # 3. Face Verification Findings
     if request.face_result is None:
         findings.append(HumanReadableFinding(
@@ -65,21 +62,15 @@ def generate_screening_report(request: ScreeningReportRequest) -> ScreeningRepor
             details=[]
         ))
     else:
-        f_status = request.face_result.status
-        if f_status == FaceVerificationStatus.MATCH:
-            f_summary = "Face matched reference successfully."
-        elif f_status == FaceVerificationStatus.NO_MATCH:
-            f_summary = "Face did not match the reference image."
-        else:
-            f_summary = f"Face verification returned {f_status.value}."
-            
+        f_status = request.face_result.status.value.capitalize()
+        f_summary = request.face_result.message
         findings.append(HumanReadableFinding(
             category="Face Verification",
-            status=f_status.value.capitalize(),
+            status=f_status,
             summary=f_summary,
-            details=[request.face_result.message]
+            details=[]
         ))
-        
+
     # 4. Risk Findings
     r_details = [f"{f.category} ({f.signal}): {f.message}" for f in request.risk_result.factors]
     findings.append(HumanReadableFinding(
@@ -88,33 +79,46 @@ def generate_screening_report(request: ScreeningReportRequest) -> ScreeningRepor
         summary=f"Risk Engine assessed this document at {request.risk_result.risk_level.value} risk.",
         details=r_details
     ))
-    
-    # Document Info Mapping
-    # Need to extract from request.ocr_result.extracted_fields
-    # For document_type, let's see if we have it. The plan says populate from OCRResponse if available.
-    # OCR extracted fields: name, passport_number, nationality, date_of_birth, gender, issue_date, expiry_date
-    ocr_fields = request.ocr_result.extracted_fields
-    doc_info = DocumentInfo(
-        document_type=None,
-        name=ocr_fields.name,
-        document_number=ocr_fields.passport_number,
-        nationality=ocr_fields.nationality,
-        date_of_birth=ocr_fields.date_of_birth,
-        gender=ocr_fields.gender,
-        issue_date=ocr_fields.issue_date,
-        expiry_date=ocr_fields.expiry_date
-    )
 
-    processing_time_ms = int((time.time() - start_time) * 1000)
-    timestamp_str = datetime.now(timezone.utc).isoformat()
+    # Document Information Selection
+    fields = request.ocr_result.extracted_fields
+    
+    doc_info = DocumentInfo(
+        document_type=document_type,
+        name=fields.name
+    )
+    
+    if document_type == "PAN":
+        doc_info.document_number = fields.pan_number
+        doc_info.date_of_birth = fields.date_of_birth
+        doc_info.fathers_name = fields.fathers_name
+    elif document_type == "AADHAAR":
+        # Mask the first 8 digits in the report
+        if fields.aadhaar_number and len(fields.aadhaar_number) == 12:
+            doc_info.document_number = f"XXXX XXXX {fields.aadhaar_number[8:]}"
+        else:
+            doc_info.document_number = fields.aadhaar_number
+        doc_info.date_of_birth = fields.date_of_birth or fields.year_of_birth
+        doc_info.gender = fields.gender
+    else:
+        # Default PASSPORT/VISA
+        doc_info.document_number = fields.passport_number
+        doc_info.nationality = fields.nationality
+        doc_info.date_of_birth = fields.date_of_birth
+        doc_info.gender = fields.gender
+        doc_info.issue_date = fields.issue_date
+        doc_info.expiry_date = fields.expiry_date
+
+    process_time_ms = int((time.time() - start_time) * 1000)
+    ts = datetime.now(timezone.utc).isoformat()
     
     return ScreeningReportResponse(
-        document_id=document_id,
+        document_id=request.ocr_result.document_id,
         overall_status=overall_status,
         risk_score=request.risk_result.risk_score,
         risk_level=request.risk_result.risk_level,
         document_information=doc_info,
         findings=findings,
-        processing_time_ms=processing_time_ms,
-        timestamp=timestamp_str
+        processing_time_ms=process_time_ms,
+        timestamp=ts
     )

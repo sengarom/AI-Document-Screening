@@ -1,10 +1,13 @@
 """Document upload API route."""
 
-from fastapi import APIRouter, File, UploadFile, status
+from fastapi import APIRouter, File, UploadFile, Form, status, HTTPException
+from fastapi.concurrency import run_in_threadpool
+from pathlib import Path
 
 from app.core.config import ORIGINAL_UPLOADS_DIR, PROCESSED_UPLOADS_DIR
 from app.schemas.documents import DocumentUploadResponse
 from app.services.document.upload_service import store_and_preprocess_upload
+from app.services.document.metadata_service import save_document_metadata, get_document_metadata
 from app.services.ocr.ocr_service import extract_text
 from app.schemas.ocr import OCRResponse
 from app.schemas.validation import ValidationResponse
@@ -17,20 +20,23 @@ from app.schemas.face import FaceVerificationResponse
 from app.services.face.face_service import verify_faces
 from app.schemas.report import ScreeningReportRequest, ScreeningReportResponse
 from app.services.report.report_service import generate_screening_report
-from fastapi.concurrency import run_in_threadpool
-from pathlib import Path
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-
 @router.post("/upload", response_model=DocumentUploadResponse, status_code=status.HTTP_201_CREATED)
-async def upload_document(file: UploadFile = File(...)) -> DocumentUploadResponse:
+async def upload_document(file: UploadFile = File(...), document_type: str = Form("PASSPORT")) -> DocumentUploadResponse:
     """Store a safe image upload and create its separate processed derivative."""
+    if document_type.upper() not in ["PASSPORT", "VISA", "PAN", "AADHAAR"]:
+        raise HTTPException(status_code=400, detail="Unsupported document type.")
+
     stored_upload = await store_and_preprocess_upload(
         upload=file,
         originals_dir=ORIGINAL_UPLOADS_DIR,
         processed_dir=PROCESSED_UPLOADS_DIR,
     )
+    
+    save_document_metadata(stored_upload.document_id, document_type.upper())
+
     return DocumentUploadResponse(
         success=True,
         document_id=stored_upload.document_id,
@@ -48,41 +54,38 @@ async def upload_document(file: UploadFile = File(...)) -> DocumentUploadRespons
 @router.post("/{document_id}/ocr", response_model=OCRResponse, status_code=status.HTTP_200_OK)
 async def run_ocr_on_document(document_id: str) -> OCRResponse:
     """Run PaddleOCR extraction on a previously uploaded and processed document."""
-    # Find the processed image
     stem = Path(document_id).stem
     processed_file = PROCESSED_UPLOADS_DIR / f"{stem}_processed.png"
 
     if not processed_file.exists():
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Document not found or not processed.")
 
-    # Run OCR in threadpool to prevent blocking the async event loop
+    doc_meta = get_document_metadata(document_id)
+    doc_type = doc_meta.get("document_type", "PASSPORT")
+
     try:
-        result = await run_in_threadpool(extract_text, str(processed_file), document_id)
+        result = await run_in_threadpool(extract_text, str(processed_file), document_id, doc_type)
         return result
     except Exception as e:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Risk scoring failed due to an internal server error.")
 
 @router.post("/{document_id}/validate", response_model=ValidationResponse, status_code=status.HTTP_200_OK)
 async def validate_document_endpoint(document_id: str) -> ValidationResponse:
     """Run Document Validation on a previously uploaded document."""
-    # Obtain OCR data internally
     ocr_result = await run_ocr_on_document(document_id)
+    
+    doc_meta = get_document_metadata(document_id)
+    doc_type = doc_meta.get("document_type", "PASSPORT")
 
-    # Run validation
-    validation_result = validate_document(document_id, ocr_result)
+    validation_result = validate_document(document_id, ocr_result, doc_type)
     return validation_result
 
 @router.post("/{document_id}/tampering", response_model=TamperingResponse, status_code=status.HTTP_200_OK)
 async def run_tampering_analysis(document_id: str) -> TamperingResponse:
     """Run Document Tampering Detection on the original uploaded document."""
-    from fastapi import HTTPException
-
     stem = Path(document_id).stem
-    # Tampering MUST run on the original unaltered image (for EXIF, ELA, noise, etc.)
     original_files = list(ORIGINAL_UPLOADS_DIR.glob(f"{stem}.*"))
-    original_files = [f for f in original_files if f.is_file() and not f.name.endswith(".uploading")]
+    original_files = [f for f in original_files if f.is_file() and not f.name.endswith(".uploading") and not f.name.endswith(".meta.json")]
 
     if not original_files:
         raise HTTPException(status_code=404, detail="Original document not found.")
@@ -90,73 +93,66 @@ async def run_tampering_analysis(document_id: str) -> TamperingResponse:
     original_file = original_files[0]
 
     try:
-        # Run in threadpool to prevent blocking the async loop for heavy classical CV operations
         result = await run_in_threadpool(analyze_document, document_id, str(original_file))
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Risk scoring failed due to an internal server error.")
 
 @router.post("/{document_id}/face-verification", response_model=FaceVerificationResponse, status_code=status.HTTP_200_OK)
 async def verify_document_face(document_id: str, reference_image: UploadFile = File(...)) -> FaceVerificationResponse:
-    """Verify the face in the document against a supplied reference selfie."""
-    from fastapi import HTTPException
-
     stem = Path(document_id).stem
-    # Use the original unaltered image for best quality
-    original_files = list(ORIGINAL_UPLOADS_DIR.glob(f"{stem}.*"))
-    original_files = [f for f in original_files if f.is_file() and not f.name.endswith(".uploading")]
+    processed_file = PROCESSED_UPLOADS_DIR / f"{stem}_processed.png"
 
-    if not original_files:
-        raise HTTPException(status_code=404, detail="Original document not found.")
-
-    original_file = original_files[0]
-
-    # Read reference image into memory
-    ref_bytes = await reference_image.read()
-    if not ref_bytes:
-        raise HTTPException(status_code=400, detail="Reference image is empty.")
+    if not processed_file.exists():
+        raise HTTPException(status_code=404, detail="Processed document not found for face verification.")
 
     try:
-        # Run in threadpool to prevent blocking the async loop
-        result = await run_in_threadpool(verify_faces, document_id, str(original_file), ref_bytes)
+        ref_bytes = await reference_image.read()
+        result = await run_in_threadpool(verify_faces, document_id, str(processed_file), ref_bytes)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Risk scoring failed due to an internal server error.")
 
 @router.post("/{document_id}/risk-score", response_model=RiskScoreResponse, status_code=status.HTTP_200_OK)
-async def get_risk_score(document_id: str, request: RiskScoreRequest) -> RiskScoreResponse:
-    """Calculate the overall risk score based on provided upstream verification signals."""
-    from fastapi import HTTPException
-
-    # Ensure document_id matches the one in validation response
-    if document_id != request.validation_result.document_id:
-        raise HTTPException(status_code=400, detail="Path document_id does not match validation_result document_id.")
-
+async def calculate_risk_endpoint(document_id: str, payload: RiskScoreRequest) -> RiskScoreResponse:
     try:
-        # This is purely synchronous math, no need for threadpool
-        return calculate_risk(request)
+        result = calculate_risk(payload)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail="Risk scoring failed due to an internal server error.")
 
 @router.post("/{document_id}/screening-report", response_model=ScreeningReportResponse, status_code=status.HTTP_200_OK)
-async def get_screening_report(document_id: str, request: ScreeningReportRequest) -> ScreeningReportResponse:
-    """Generate the final structured screening report based on upstream results."""
-    from fastapi import HTTPException
+async def generate_report_endpoint(document_id: str, payload: ScreeningReportRequest) -> ScreeningReportResponse:
+    if payload.ocr_result.document_id != document_id:
+        raise HTTPException(status_code=400, detail="Document ID does not match ocr_result document_id.")
+    if payload.validation_result.document_id != document_id:
+        raise HTTPException(status_code=400, detail="Document ID does not match validation_result document_id.")
+    if payload.tampering_result.document_id != document_id:
+        raise HTTPException(status_code=400, detail="Document ID does not match tampering_result document_id.")
+    if payload.risk_result.document_id != document_id:
+        raise HTTPException(status_code=400, detail="Document ID does not match risk_result document_id.")
+    if payload.face_result and payload.face_result.document_id != document_id:
+        raise HTTPException(status_code=400, detail="Document ID does not match face_result document_id.")
 
-    # Document ID consistency check
-    if document_id != request.ocr_result.document_id:
-        raise HTTPException(status_code=400, detail="Path document_id does not match ocr_result document_id.")
-    if document_id != request.validation_result.document_id:
-        raise HTTPException(status_code=400, detail="Path document_id does not match validation_result document_id.")
-    if document_id != request.tampering_result.document_id:
-        raise HTTPException(status_code=400, detail="Path document_id does not match tampering_result document_id.")
-    if document_id != request.risk_result.document_id:
-        raise HTTPException(status_code=400, detail="Path document_id does not match risk_result document_id.")
-    if request.face_result is not None and document_id != request.face_result.document_id:
-        raise HTTPException(status_code=400, detail="Path document_id does not match face_result document_id.")
-
+    doc_meta = get_document_metadata(document_id)
+    doc_type = doc_meta.get("document_type", "PASSPORT")
+    
     try:
-        # Synchronous report generation
-        return generate_screening_report(request)
+        result = generate_screening_report(document_id, payload, doc_type)
+        return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to generate screening report due to an internal error.")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+    doc_meta = get_document_metadata(document_id)
+    doc_type = doc_meta.get("document_type", "PASSPORT")
+    
+    try:
+        result = generate_screening_report(document_id, payload, doc_type)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+
+

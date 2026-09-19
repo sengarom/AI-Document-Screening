@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 import numpy as np
 from unittest.mock import MagicMock
 from app.services.ocr import ocr_service
@@ -50,9 +50,9 @@ def test_extract_text_handles_numpy_arrays(monkeypatch):
     assert response.extracted_fields.name == "JOHN DOE"
     assert response.extracted_fields.passport_number == "U12345678"
 
-def test_extract_fields_spatial_layout():
+def test_extract_passport_fields_spatial_layout():
     from app.schemas.ocr import OCRDetection
-    from app.services.ocr.ocr_service import _extract_fields
+    from app.services.ocr.ocr_service import _extract_passport_fields
     
     detections = [
         # Same line: Passport No
@@ -89,7 +89,7 @@ def test_extract_fields_spatial_layout():
         OCRDetection(text="Country Code: UTO", confidence=0.99, bbox=[10, 220, 150, 230]),
     ]
     
-    fields = _extract_fields(detections)
+    fields = _extract_passport_fields(detections)
     assert fields.name == "JANE SMITH"
     assert fields.nationality == "UTOPIAN"
     assert fields.date_of_birth == "15/05/1990"
@@ -98,9 +98,9 @@ def test_extract_fields_spatial_layout():
     assert fields.expiry_date == "09 JAN / JAN 2030"
     assert fields.passport_number == "X98765432"
 
-def test_extract_fields_fallback_name():
+def test_extract_passport_fields_fallback_name():
     from app.schemas.ocr import OCRDetection
-    from app.services.ocr.ocr_service import _extract_fields
+    from app.services.ocr.ocr_service import _extract_passport_fields
     
     detections = [
         OCRDetection(text="Name:", confidence=0.99, bbox=[10, 10, 60, 20]),
@@ -108,6 +108,10 @@ def test_extract_fields_fallback_name():
         OCRDetection(text="Country Code: XYZ", confidence=0.99, bbox=[10, 50, 150, 60]), # Same line
     ]
     
-    fields = _extract_fields(detections)
+    fields = _extract_passport_fields(detections)
     assert fields.name == "ALICE"
     assert fields.nationality == "XYZ"
+
+def _extract_passport_fields(detections):
+    print("extract_passport_fields running")
+

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+﻿from pydantic import BaseModel, Field
 from typing import List, Optional
 from enum import Enum
 from app.schemas.ocr import OCRResponse
@@ -27,6 +27,11 @@ class DocumentInfo(BaseModel):
     gender: Optional[str] = None
     issue_date: Optional[str] = None
     expiry_date: Optional[str] = None
+    fathers_name: Optional[str] = None
+    pan_number: Optional[str] = None
+    aadhaar_number: Optional[str] = None
+    year_of_birth: Optional[str] = None
+    address: Optional[str] = None
 
 class ScreeningReportRequest(BaseModel):
     ocr_result: OCRResponse
@@ -45,3 +50,4 @@ class ScreeningReportResponse(BaseModel):
     processing_time_ms: int = Field(..., description="Time spent generating this specific report.")
     timestamp: str = Field(..., description="Server-side ISO 8601 timezone-aware timestamp.")
     disclaimer: str = "This report is an assistive screening tool. It does not establish legal document authenticity, identity, or government verification."
+

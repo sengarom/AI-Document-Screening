@@ -1,7 +1,7 @@
-from typing import List
+﻿from typing import List
 from app.schemas.ocr import OCRResponse, OCRDetection, OCRExtractedFields
 
-def mock_extract_text(file_path: str, document_id: str) -> OCRResponse:
+def mock_extract_text(file_path: str, document_id: str, document_type: str = "PASSPORT") -> OCRResponse:
     """A mock OCR extraction service for testing without GPU/PaddleOCR."""
     
     if "fail" in document_id:
@@ -38,3 +38,4 @@ def mock_extract_text(file_path: str, document_id: str) -> OCRResponse:
         extracted_fields=fields,
         raw_output=None
     )
+

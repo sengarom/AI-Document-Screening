@@ -1,4 +1,4 @@
-from typing import List, Optional, Any
+﻿from typing import List, Optional, Any
 from pydantic import BaseModel, Field
 
 class OCRDetection(BaseModel):
@@ -14,6 +14,11 @@ class OCRExtractedFields(BaseModel):
     gender: Optional[str] = None
     issue_date: Optional[str] = None
     expiry_date: Optional[str] = None
+    fathers_name: Optional[str] = None
+    pan_number: Optional[str] = None
+    aadhaar_number: Optional[str] = None
+    year_of_birth: Optional[str] = None
+    address: Optional[str] = None
 
 class OCRResponse(BaseModel):
     success: bool
@@ -24,3 +29,4 @@ class OCRResponse(BaseModel):
     extracted_fields: OCRExtractedFields
     raw_output: Any = Field(default=None, description="Raw PaddleOCR output for debugging (optional)")
     authenticity_warning: str = "OCR extraction does not establish document authenticity."
+

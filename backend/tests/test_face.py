@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 import cv2
 import numpy as np
 from pathlib import Path
@@ -89,18 +89,16 @@ def test_api_invalid_document_id():
     assert resp.status_code == 404
 
 def test_api_corrupted_reference(tmp_path):
-    doc_path = tmp_path / "valid.jpg"
+    doc_path = tmp_path / "valid_processed.png"
     cv2.imwrite(str(doc_path), np.zeros((100, 100, 3), dtype=np.uint8))
     
-    mock_dir = MagicMock()
-    mock_dir.glob.return_value = [doc_path]
-    
-    with patch('app.api.documents.ORIGINAL_UPLOADS_DIR', mock_dir):
+    with patch('app.api.documents.PROCESSED_UPLOADS_DIR', tmp_path):
         resp = client.post(
             "/api/documents/valid/face-verification",
             files={"reference_image": ("ref.jpg", b"corrupted", "image/jpeg")}
         )
         assert resp.status_code == 500
+
 
 # ==========================================
 # E2E REAL MODEL TESTS (Synthetic Images)
@@ -139,3 +137,6 @@ def test_real_model_e2e_different_face():
     assert resp.status == FaceVerificationStatus.NO_MATCH
     assert resp.verified is False
     assert resp.similarity_score < 0.363
+
+
+
