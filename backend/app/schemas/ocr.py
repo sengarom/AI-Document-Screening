@@ -19,6 +19,7 @@ class OCRExtractedFields(BaseModel):
     aadhaar_number: Optional[str] = None
     year_of_birth: Optional[str] = None
     address: Optional[str] = None
+    provenance: Optional[dict] = None
 
 class OCRResponse(BaseModel):
     success: bool
