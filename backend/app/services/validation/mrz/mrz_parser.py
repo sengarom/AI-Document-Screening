@@ -87,11 +87,25 @@ def parse_mrz(lines: List[str]) -> Optional[MRZParsedData]:
     else:
         data.name = name_field.replace("<", " ").strip()
         
+    def format_mrz_date(yymmdd: str, is_dob: bool = False) -> str:
+        if len(yymmdd) != 6 or not yymmdd.isdigit():
+            return yymmdd
+        yy, mm, dd = int(yymmdd[0:2]), yymmdd[2:4], yymmdd[4:6]
+        from datetime import datetime
+        current_year = datetime.now().year
+        current_yy = current_year % 100
+        
+        century = 2000
+        if is_dob and yy > current_yy:
+            century = 1900
+            
+        return f"{dd}/{mm}/{century + yy}"
+
     data.passport_number = line2[0:9].replace("<", "")
     data.nationality = fix_country(line2[10:13].replace("<", ""))
-    data.date_of_birth = line2[13:19]
+    data.date_of_birth = format_mrz_date(line2[13:19], is_dob=True)
     data.sex = line2[20].replace("<", "X")
-    data.expiry_date = line2[21:27]
+    data.expiry_date = format_mrz_date(line2[21:27], is_dob=False)
     
     return data
 

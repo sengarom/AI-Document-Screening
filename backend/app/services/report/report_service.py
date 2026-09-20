@@ -82,6 +82,7 @@ def generate_screening_report(document_id: str, request: ScreeningReportRequest,
 
     # Document Information Selection
     fields = request.ocr_result.extracted_fields
+    mrz = request.validation_result.mrz_data
     
     doc_info = DocumentInfo(
         document_type=document_type,
@@ -102,12 +103,13 @@ def generate_screening_report(document_id: str, request: ScreeningReportRequest,
         doc_info.gender = fields.gender
     else:
         # Default PASSPORT/VISA
-        doc_info.document_number = fields.passport_number
-        doc_info.nationality = fields.nationality
-        doc_info.date_of_birth = fields.date_of_birth
-        doc_info.gender = fields.gender
+        doc_info.name = fields.name or (mrz.name if mrz else None)
+        doc_info.document_number = fields.passport_number or (mrz.passport_number if mrz else None)
+        doc_info.nationality = fields.nationality or (mrz.nationality if mrz else None)
+        doc_info.date_of_birth = fields.date_of_birth or (mrz.date_of_birth if mrz else None)
+        doc_info.gender = fields.gender or (mrz.sex if mrz else None)
         doc_info.issue_date = fields.issue_date
-        doc_info.expiry_date = fields.expiry_date
+        doc_info.expiry_date = fields.expiry_date or (mrz.expiry_date if mrz else None)
 
     process_time_ms = int((time.time() - start_time) * 1000)
     ts = datetime.now(timezone.utc).isoformat()

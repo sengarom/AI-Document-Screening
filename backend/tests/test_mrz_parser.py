@@ -30,3 +30,25 @@ def test_extract_mrz_lines_negative_malformed():
 
 if __name__ == "__main__":
     pytest.main(["-v", "test_mrz_parser.py"])
+
+
+from app.services.validation.mrz.mrz_parser import parse_mrz
+
+def test_parse_mrz_dates():
+    lines = [
+        "P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<",
+        "L898902C36UTO7408122F1204159ZE184226B<<<<<10"
+    ]
+    parsed = parse_mrz(lines)
+    assert parsed.date_of_birth == "12/08/1974"  # DOB: century 1900 because 74 > current_yy
+    assert parsed.expiry_date == "15/04/2012"  # Expiry: century 2000
+
+def test_parse_mrz_century_boundary():
+    # If yy is like 20, DOB is 2020. Expiry is 2020.
+    lines = [
+        "P<UTOSMITH<<JOHN<<<<<<<<<<<<<<<<<<<<<<<<<<<<",
+        "L898902C36UTO2001012M2001019ZE184226B<<<<<10"
+    ]
+    parsed = parse_mrz(lines)
+    assert parsed.date_of_birth == "01/01/2020"
+    assert parsed.expiry_date == "01/01/2020"

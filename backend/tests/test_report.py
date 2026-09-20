@@ -181,3 +181,70 @@ def test_deterministic_generation():
     assert len(resp1.findings) == len(resp2.findings)
 
 
+def test_report_uses_mrz_fallback():
+    # Construct a report request with missing visual fields but valid MRZ data
+    from app.schemas.report import ScreeningReportRequest
+    from app.schemas.risk import RiskScoreResponse, RiskLevel
+    from app.schemas.tampering import TamperingResponse, TamperingStatus
+    from app.schemas.validation import MRZParsedData
+
+    from tests.test_validation_service import create_mock_ocr_response, validate_document
+    ocr_resp = create_mock_ocr_response({
+        "name": None,
+        "passport_number": None,
+        "nationality": None,
+        "date_of_birth": None,
+        "gender": None,
+        "issue_date": None,
+        "expiry_date": None
+    })
+
+    val_resp = validate_document("test", ocr_resp)
+    # Manually inject MRZ data to simulate a success
+    val_resp.mrz_data = MRZParsedData(
+        document_type="P",
+        issuing_country="UTO",
+        passport_number="L898902C3",
+        nationality="UTO",
+        date_of_birth="12/08/1974",
+        sex="F",
+        expiry_date="15/04/2012",
+        name="ANNA MARIA ERIKSSON"
+    )
+
+    tamp_resp = TamperingResponse(
+        document_id="test",
+        overall_status=TamperingStatus.PASSED,
+        tampering_score=0.1,
+        severity="Low",
+        suspicious_regions=[],
+        signals={},
+        processing_time_ms=100
+    )
+
+    risk_resp = RiskScoreResponse(
+        document_id="test",
+        risk_score=10,
+        risk_level=RiskLevel.LOW,
+        factors=[]
+    )
+
+    req = ScreeningReportRequest(
+        ocr_result=ocr_resp,
+        validation_result=val_resp,
+        tampering_result=tamp_resp,
+        risk_result=risk_resp,
+        face_result=None,
+        document_type="PASSPORT"
+    )
+
+    from app.services.report.report_service import generate_screening_report
+    report = generate_screening_report("test", req, "PASSPORT")
+
+    # DocumentInfo should be populated via MRZ fallback
+    assert report.document_information.name == "ANNA MARIA ERIKSSON"
+    assert report.document_information.document_number == "L898902C3"
+    assert report.document_information.nationality == "UTO"
+    assert report.document_information.date_of_birth == "12/08/1974"
+    assert report.document_information.gender == "F"
+    assert report.document_information.expiry_date == "15/04/2012"

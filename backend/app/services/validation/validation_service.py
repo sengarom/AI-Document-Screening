@@ -1,4 +1,4 @@
-﻿from typing import List
+from typing import List, Tuple, Optional
 import re
 from datetime import datetime
 from app.schemas.ocr import OCRResponse, OCRExtractedFields, OCRDetection
@@ -15,12 +15,13 @@ from app.services.validation.mrz.mrz_validator import validate_mrz_checksums
 from app.services.validation.consistency_validator import validate_consistency
 
 def validate_document(document_id: str, ocr_data: OCRResponse, document_type: str = "PASSPORT") -> ValidationResponse:
+    mrz_data = None
     if document_type == "PAN":
         checks = _validate_pan(ocr_data.extracted_fields, ocr_data.detections)
     elif document_type == "AADHAAR":
         checks = _validate_aadhaar(ocr_data.extracted_fields, ocr_data.detections)
     else:
-        checks = _validate_passport(ocr_data)
+        checks, mrz_data = _validate_passport(ocr_data)
         
     is_valid = True
     overall_status = ValidationStatus.PASSED
@@ -41,17 +42,12 @@ def validate_document(document_id: str, ocr_data: OCRResponse, document_type: st
         document_id=document_id,
         valid=is_valid,
         status=overall_status,
-        checks=checks
+        checks=checks,
+        mrz_data=mrz_data
     )
 
-def _validate_passport(ocr_data: OCRResponse) -> List[ValidationCheck]:
+def _validate_passport(ocr_data: OCRResponse) -> Tuple[List[ValidationCheck], Optional[MRZParsedData]]:
     checks: List[ValidationCheck] = []
-    
-    # 1. Field Validations
-    checks.extend(validate_required_fields(ocr_data.extracted_fields))
-    checks.extend(validate_dates(ocr_data.extracted_fields))
-    checks.extend(validate_passport_number(ocr_data.extracted_fields.passport_number))
-    checks.extend(validate_gender(ocr_data.extracted_fields.gender))
     
     # 2. MRZ parsing and validation
     mrz_lines = extract_mrz_lines(ocr_data.detections)
@@ -66,9 +62,15 @@ def _validate_passport(ocr_data: OCRResponse) -> List[ValidationCheck]:
             message="No MRZ detected or incomplete MRZ."
         ))
         
+    # 1. Field Validations
+    checks.extend(validate_required_fields(ocr_data.extracted_fields, mrz_parsed))
+    checks.extend(validate_dates(ocr_data.extracted_fields))
+    checks.extend(validate_passport_number(ocr_data.extracted_fields.passport_number))
+    checks.extend(validate_gender(ocr_data.extracted_fields.gender))
+    
     # 3. Consistency checks
     checks.extend(validate_consistency(ocr_data.extracted_fields, mrz_parsed))
-    return checks
+    return checks, mrz_parsed
 
 def _validate_pan(fields: OCRExtractedFields, detections: List[OCRDetection]) -> List[ValidationCheck]:
     checks: List[ValidationCheck] = []

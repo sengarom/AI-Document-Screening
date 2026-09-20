@@ -18,6 +18,7 @@ class ValidationResponse(BaseModel):
     status: ValidationStatus
     checks: List[ValidationCheck]
     authenticity_warning: str = "Document validation checks internal consistency and formatting. It does not establish document authenticity."
+    mrz_data: Optional['MRZParsedData'] = None
 
 class MRZParsedData(BaseModel):
     document_type: Optional[str] = None

@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, date
 from typing import List, Optional, Tuple
-from app.schemas.validation import ValidationCheck, ValidationStatus
+from app.schemas.validation import ValidationCheck, ValidationStatus, MRZParsedData
 from app.schemas.ocr import OCRExtractedFields
 
 def parse_date(date_str: str) -> Optional[date]:
@@ -51,22 +51,30 @@ def parse_date(date_str: str) -> Optional[date]:
             
     return None
 
-def validate_required_fields(fields: OCRExtractedFields) -> List[ValidationCheck]:
+def validate_required_fields(fields: OCRExtractedFields, mrz: Optional[MRZParsedData] = None) -> List[ValidationCheck]:
     checks = []
     required = ["name", "passport_number", "date_of_birth", "expiry_date"]
     for req in required:
         val = getattr(fields, req, None)
-        if not val:
-            checks.append(ValidationCheck(
-                check=f"required_field_{req}",
-                status=ValidationStatus.FAILED,
-                message=f"Mandatory field '{req}' is missing."
-            ))
-        else:
+        mrz_val = getattr(mrz, req, None) if mrz else None
+        
+        if val:
             checks.append(ValidationCheck(
                 check=f"required_field_{req}",
                 status=ValidationStatus.PASSED,
                 message=f"Mandatory field '{req}' is present."
+            ))
+        elif mrz_val:
+            checks.append(ValidationCheck(
+                check=f"required_field_{req}",
+                status=ValidationStatus.PASSED,
+                message=f"Mandatory field '{req}' satisfied via MRZ."
+            ))
+        else:
+            checks.append(ValidationCheck(
+                check=f"required_field_{req}",
+                status=ValidationStatus.FAILED,
+                message=f"Mandatory field '{req}' is missing."
             ))
     return checks
 

@@ -224,3 +224,107 @@ def test_visual_mrz_mismatch():
     check_dict = {c.check: c.status for c in response.checks}
     assert check_dict["visual_mrz_passport_number_match"] == ValidationStatus.FAILED
     assert check_dict["visual_mrz_gender_match"] == ValidationStatus.FAILED
+def test_required_fields_visual_missing_mrz_valid():
+    # Visual fields missing, but MRZ present and valid
+    fields = {
+        "name": None,
+        "passport_number": None,
+        "date_of_birth": None,
+        "expiry_date": None
+    }
+    mrz_lines = [
+        "P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<",
+        "L898902C36UTO7408122F1204159ZE184226B<<<<<10"
+    ]
+    resp = create_mock_ocr_response(fields, mrz_lines)
+    val = validate_document("test", resp)
+    
+    # Validation should pass because MRZ supplies the required fields
+    assert val.valid is True
+    assert val.status == ValidationStatus.PASSED
+    
+    # Check that required fields are PASSED
+    req_checks = [c for c in val.checks if c.check.startswith("required_field_")]
+    assert len(req_checks) == 4
+    for rc in req_checks:
+        assert rc.status == ValidationStatus.PASSED
+        assert "satisfied via MRZ" in rc.message
+
+def test_required_fields_both_missing():
+    # Both visual and MRZ missing
+    fields = {
+        "name": None,
+        "passport_number": None,
+        "date_of_birth": None,
+        "expiry_date": None
+    }
+    resp = create_mock_ocr_response(fields, [])
+    val = validate_document("test", resp)
+    
+    # Should fail
+    assert val.valid is False
+    req_checks = [c for c in val.checks if c.check.startswith("required_field_")]
+    assert len(req_checks) == 4
+    for rc in req_checks:
+        assert rc.status == ValidationStatus.FAILED
+        assert "is missing" in rc.message
+
+def test_visual_mrz_contradiction():
+    # Visual present but contradicts MRZ
+    fields = {
+        "name": "ANNA MARIA",
+        "passport_number": "DIFFERENT", # Contradicts L898902C3
+        "date_of_birth": "12/08/1974", # Matches MRZ
+        "expiry_date": "15/04/2012", # Matches MRZ
+        "gender": "F"
+    }
+    mrz_lines = [
+        "P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<",
+        "L898902C36UTO7408122F1204159ZE184226B<<<<<10"
+    ]
+    resp = create_mock_ocr_response(fields, mrz_lines)
+    val = validate_document("test", resp)
+    
+    assert val.valid is False
+    ppt_match = next((c for c in val.checks if c.check == "visual_mrz_passport_number_match"), None)
+    assert ppt_match is not None
+    assert ppt_match.status == ValidationStatus.FAILED
+
+def test_visual_mrz_matching():
+    # Visual present and matches MRZ
+    fields = {
+        "name": "ANNA MARIA",
+        "passport_number": "L898902C3", 
+        "date_of_birth": "12/08/1974", 
+        "expiry_date": "15/04/2012", 
+        "gender": "F"
+    }
+    mrz_lines = [
+        "P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<",
+        "L898902C36UTO7408122F1204159ZE184226B<<<<<10"
+    ]
+    resp = create_mock_ocr_response(fields, mrz_lines)
+    val = validate_document("test", resp)
+    
+    assert val.valid is True
+    ppt_match = next((c for c in val.checks if c.check == "visual_mrz_passport_number_match"), None)
+    assert ppt_match is not None
+    assert ppt_match.status == ValidationStatus.PASSED
+
+def test_mrz_data_survives_validation_response():
+    fields = {
+        "name": None,
+        "passport_number": None,
+        "date_of_birth": None,
+        "expiry_date": None
+    }
+    mrz_lines = [
+        "P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<",
+        "L898902C36UTO7408122F1204159ZE184226B<<<<<10"
+    ]
+    resp = create_mock_ocr_response(fields, mrz_lines)
+    val = validate_document("test", resp)
+    
+    assert val.mrz_data is not None
+    assert val.mrz_data.passport_number == "L898902C3"
+    assert val.mrz_data.name == "ANNA MARIA ERIKSSON"

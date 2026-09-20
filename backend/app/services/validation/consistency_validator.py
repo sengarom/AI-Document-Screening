@@ -43,16 +43,12 @@ def validate_consistency(visual: OCRExtractedFields, mrz: Optional[MRZParsedData
 
     # DOB
     v_dob_obj = parse_date(visual.date_of_birth)
-    if v_dob_obj and mrz.date_of_birth and len(mrz.date_of_birth) == 6:
+    if v_dob_obj and mrz.date_of_birth and len(mrz.date_of_birth) == 10:
         try:
-            m_year = int(mrz.date_of_birth[0:2])
-            m_month = int(mrz.date_of_birth[2:4])
-            m_day = int(mrz.date_of_birth[4:6])
-            
-            # YY to YYYY conversion standard (heuristic: < 50 is 2000s, >= 50 is 1900s)
-            full_year = 2000 + m_year if m_year < 50 else 1900 + m_year
-            
-            if v_dob_obj.year == full_year and v_dob_obj.month == m_month and v_dob_obj.day == m_day:
+            m_day = int(mrz.date_of_birth[0:2])
+            m_month = int(mrz.date_of_birth[3:5])
+            m_year = int(mrz.date_of_birth[6:10])
+            if v_dob_obj.year == m_year and v_dob_obj.month == m_month and v_dob_obj.day == m_day:
                 checks.append(ValidationCheck(check="visual_mrz_dob_match", status=ValidationStatus.PASSED, message="Date of Birth matches MRZ."))
             else:
                 checks.append(ValidationCheck(check="visual_mrz_dob_match", status=ValidationStatus.FAILED, message="Date of Birth does not match MRZ."))
@@ -61,15 +57,12 @@ def validate_consistency(visual: OCRExtractedFields, mrz: Optional[MRZParsedData
 
     # Expiry
     v_exp_obj = parse_date(visual.expiry_date)
-    if v_exp_obj and mrz.expiry_date and len(mrz.expiry_date) == 6:
+    if v_exp_obj and mrz.expiry_date and len(mrz.expiry_date) == 10:
         try:
-            m_year = int(mrz.expiry_date[0:2])
-            m_month = int(mrz.expiry_date[2:4])
-            m_day = int(mrz.expiry_date[4:6])
-            
-            full_year = 2000 + m_year if m_year < 80 else 1900 + m_year # expiry usually in 2000s
-            
-            if v_exp_obj.year == full_year and v_exp_obj.month == m_month and v_exp_obj.day == m_day:
+            m_day = int(mrz.expiry_date[0:2])
+            m_month = int(mrz.expiry_date[3:5])
+            m_year = int(mrz.expiry_date[6:10])
+            if v_exp_obj.year == m_year and v_exp_obj.month == m_month and v_exp_obj.day == m_day:
                 checks.append(ValidationCheck(check="visual_mrz_expiry_match", status=ValidationStatus.PASSED, message="Expiry Date matches MRZ."))
             else:
                 checks.append(ValidationCheck(check="visual_mrz_expiry_match", status=ValidationStatus.FAILED, message="Expiry Date does not match MRZ."))
