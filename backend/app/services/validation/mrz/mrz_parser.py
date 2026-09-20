@@ -37,7 +37,8 @@ def extract_mrz_lines(detections: List[OCRDetection]) -> List[str]:
         text = "".join(d.text.replace(" ", "").upper() for d in line)
         text = text.replace("«", "<").replace("(", "<").replace(")", "<")
         
-        if len(text) >= 30 and (text.count('<') >= 3 or text.startswith('P<') or text.startswith('V<')):
+        valid_chars = sum(1 for c in text if c.isalnum() or c == '<')
+        if len(text) >= 30 and (valid_chars / max(len(text), 1)) > 0.9 and (text.count('<') >= 2 or text.startswith('P<') or text.startswith('V<')):
             mrz_candidates.append((text, line[0].bbox[1]))
             
     mrz_candidates.sort(key=lambda x: x[1])
@@ -93,3 +94,5 @@ def parse_mrz(lines: List[str]) -> Optional[MRZParsedData]:
     data.expiry_date = line2[21:27]
     
     return data
+
+

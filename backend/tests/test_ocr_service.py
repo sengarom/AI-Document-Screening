@@ -115,3 +115,125 @@ def test_extract_passport_fields_fallback_name():
 def _extract_passport_fields(detections):
     print("extract_passport_fields running")
 
+
+def test_extract_passport_fields_fathers_name_regression():
+    from app.schemas.ocr import OCRDetection
+    from app.services.ocr.ocr_service import _extract_passport_fields
+    
+    # User's reported failure case layout
+    detections = [
+        OCRDetection(text="FULL NAME:", confidence=0.99, bbox=[10, 10, 100, 20]),
+        OCRDetection(text="ARJUN MEHRA", confidence=0.99, bbox=[110, 10, 250, 20]),
+        
+        OCRDetection(text="FATHER'S NAME:", confidence=0.99, bbox=[10, 40, 150, 50]),
+        OCRDetection(text="JAMES MEHRA", confidence=0.99, bbox=[160, 40, 300, 50]),
+        
+        OCRDetection(text="DATE OF BIRTH: 14/08/1998", confidence=0.99, bbox=[10, 70, 300, 80]),
+        OCRDetection(text="GENDER: MALE", confidence=0.99, bbox=[10, 100, 200, 110]),
+    ]
+    
+    fields = _extract_passport_fields(detections)
+    assert fields.name == "ARJUN MEHRA"
+    assert fields.fathers_name == "JAMES MEHRA"
+    assert fields.date_of_birth == "14/08/1998"
+    assert fields.gender == "M"
+
+def test_extract_passport_fields_fathers_name_ordering_regression():
+    from app.schemas.ocr import OCRDetection
+    from app.services.ocr.ocr_service import _extract_passport_fields
+    
+    # Father's name appearing before Name in OCR detection order
+    detections = [
+        OCRDetection(text="FATHER'S NAME: JAMES MEHRA", confidence=0.99, bbox=[10, 10, 300, 20]),
+        OCRDetection(text="NAME: ARJUN MEHRA", confidence=0.99, bbox=[10, 40, 250, 50]),
+    ]
+    
+    fields = _extract_passport_fields(detections)
+    assert fields.name == "ARJUN MEHRA"
+    assert fields.fathers_name == "JAMES MEHRA"
+
+def test_extract_passport_fields_fathers_name_robustness():
+    from app.schemas.ocr import OCRDetection
+    from app.services.ocr.ocr_service import _extract_passport_fields
+
+    # A. FULL NAME before FATHER'S NAME
+    detections_a = [
+        OCRDetection(text="FULL NAME:", confidence=0.99, bbox=[10, 10, 100, 20]),
+        OCRDetection(text="ARJUN MEHRA", confidence=0.99, bbox=[110, 10, 250, 20]),
+        OCRDetection(text="FATHER'S NAME:", confidence=0.99, bbox=[10, 40, 150, 50]),
+        OCRDetection(text="JAMES MEHRA", confidence=0.99, bbox=[160, 40, 300, 50]),
+    ]
+    fields_a = _extract_passport_fields(detections_a)
+    assert fields_a.name == "ARJUN MEHRA"
+    assert fields_a.fathers_name == "JAMES MEHRA"
+
+    # B. FATHER'S NAME before FULL NAME
+    detections_b = [
+        OCRDetection(text="FATHER'S NAME:", confidence=0.99, bbox=[10, 10, 150, 20]),
+        OCRDetection(text="JAMES MEHRA", confidence=0.99, bbox=[160, 10, 300, 20]),
+        OCRDetection(text="FULL NAME:", confidence=0.99, bbox=[10, 40, 100, 50]),
+        OCRDetection(text="ARJUN MEHRA", confidence=0.99, bbox=[110, 40, 250, 50]),
+    ]
+    fields_b = _extract_passport_fields(detections_b)
+    assert fields_b.name == "ARJUN MEHRA"
+    assert fields_b.fathers_name == "JAMES MEHRA"
+
+    # C. Both labels in the same OCR detection (e.g., FATHER'S NAME: JAMES MEHRA)
+    detections_c = [
+        OCRDetection(text="FATHER'S NAME: JAMES MEHRA", confidence=0.99, bbox=[10, 10, 300, 20]),
+        OCRDetection(text="FULL NAME: ARJUN MEHRA", confidence=0.99, bbox=[10, 40, 250, 50]),
+    ]
+    fields_c = _extract_passport_fields(detections_c)
+    assert fields_c.name == "ARJUN MEHRA"
+    assert fields_c.fathers_name == "JAMES MEHRA"
+
+    # E. Horizontally adjacent (done above in A and B)
+    # F. Vertically adjacent
+    detections_f = [
+        OCRDetection(text="FULL NAME", confidence=0.99, bbox=[10, 10, 100, 20]),
+        OCRDetection(text="ARJUN MEHRA", confidence=0.99, bbox=[10, 30, 200, 40]),
+        OCRDetection(text="FATHER S NAME", confidence=0.99, bbox=[10, 60, 150, 70]), # Test OCR error "S"
+        OCRDetection(text="JAMES MEHRA", confidence=0.99, bbox=[10, 80, 200, 90]),
+    ]
+    fields_f = _extract_passport_fields(detections_f)
+    assert fields_f.name == "ARJUN MEHRA"
+    assert fields_f.fathers_name == "JAMES MEHRA"
+
+    # G. Arbitrary list order (visual position still correct)
+    detections_g = [
+        OCRDetection(text="JAMES MEHRA", confidence=0.99, bbox=[160, 40, 300, 50]),
+        OCRDetection(text="FULL NAME:", confidence=0.99, bbox=[10, 10, 100, 20]),
+        OCRDetection(text="FATHER'S NAME:", confidence=0.99, bbox=[10, 40, 150, 50]),
+        OCRDetection(text="ARJUN MEHRA", confidence=0.99, bbox=[110, 10, 250, 20]),
+    ]
+    fields_g = _extract_passport_fields(detections_g)
+    assert fields_g.name == "ARJUN MEHRA"
+    assert fields_g.fathers_name == "JAMES MEHRA"
+
+def test_extract_passport_fields_negative_cases():
+    from app.schemas.ocr import OCRDetection
+    from app.services.ocr.ocr_service import _extract_passport_fields
+
+    # Legitimate name field
+    detections_1 = [
+        OCRDetection(text="NAME: ARJUN MEHRA", confidence=0.99, bbox=[10, 10, 200, 20]),
+    ]
+    assert _extract_passport_fields(detections_1).name == "ARJUN MEHRA"
+    assert _extract_passport_fields(detections_1).fathers_name is None
+
+    # Legitimate full name field
+    detections_2 = [
+        OCRDetection(text="FULL NAME: ARJUN MEHRA", confidence=0.99, bbox=[10, 10, 250, 20]),
+    ]
+    assert _extract_passport_fields(detections_2).name == "ARJUN MEHRA"
+    assert _extract_passport_fields(detections_2).fathers_name is None
+
+    # Only Father's Name exists
+    detections_3 = [
+        OCRDetection(text="FATHER'S NAME: JAMES MEHRA", confidence=0.99, bbox=[10, 10, 300, 20]),
+        # Add some unrelated text to ensure NAME isn't triggered
+        OCRDetection(text="DATE OF BIRTH: 01/01/2000", confidence=0.99, bbox=[10, 40, 200, 50]),
+    ]
+    fields_3 = _extract_passport_fields(detections_3)
+    assert fields_3.fathers_name == "JAMES MEHRA"
+    assert fields_3.name is None
