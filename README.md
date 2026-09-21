@@ -287,7 +287,7 @@ Five people, five distinct responsibilities, one pipeline. A screening system is
 |:-:|---|---|---|
 | ⚙️ | **Om Sengar** | Backend Lead | The engine room: the FastAPI service that powers OCR, screening and explainable risk scoring |
 | 🖥️ | **Kushaan Aggarwal** | Frontend Lead | The officer-facing React + Vite interface, where results turn into decisions |
-| 🎨 | **Shreya Mishra** | **Visual Design & Presentation Lead** | The face and the voice of the project: visual identity, diagrams, demo storyline and expo presentation. She makes a complex multi-module AI pipeline understandable at a glance to judges, officers and users alike |
+| 🎨 | **Shreya Mishra** | Visual Design & Presentation Lead | The face and the voice of the project: visual identity, diagrams, demo storyline and expo presentation. She makes a complex multi-module AI pipeline understandable at a glance to judges, officers and users alike |
 | ✅ | **Yashika Dagar** | Validation Lead | Module 2: document validation, covering format rules, date logic, MRZ parsing and checksum checks |
 | 🧪 | **Rajveer Singh** | Testing & Quality Lead | Test coverage and reliability, so the system behaves the same way every time it's used |
 
