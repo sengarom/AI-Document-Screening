@@ -1,12 +1,12 @@
 {
   "services": {
     "frontend": {
-      "root": "frontend",
+      "root": "frontend/",
       "framework": "nextjs"
     },
     "backend": {
-      "root": "backend",
-      "entrypoint": "app/main:app"
+      "root": "backend/",
+      "framework": "fastapi"
     }
   },
   "rewrites": [
