@@ -1,6 +1,5 @@
-﻿import re
+import re
 from typing import List, Optional
-import paddle
 
 from app.schemas.ocr import OCRDetection, OCRExtractedFields, OCRResponse
 from app.services.ocr.paddle_engine import get_ocr_engine
@@ -8,6 +7,7 @@ from app.services.ocr.passport_extractor import extract_passport_fields_v2
 
 def extract_text(file_path: str, document_id: str, document_type: str = "PASSPORT") -> OCRResponse:
     """Run OCR extraction using PaddleOCR without logging sensitive data."""
+    import paddle
     engine = get_ocr_engine()
     
     result_list = list(engine.predict(file_path))
