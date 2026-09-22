@@ -9,44 +9,58 @@ import { Upload, ScanText, Fingerprint, ShieldAlert, BadgeCheck, FileWarning, Ch
 const steps = [
   {
     id: 1,
-    title: "Upload Document",
-    description: "Securely upload identity documents. We support passports, national IDs, and driver's licenses from over 190 countries.",
+    title: "Document Ingestion",
+    description: "Securely intakes identity documents and normalizes them for processing.",
+    indicators: ["Format Normalization", "Edge Detection", "Glare Reduction"],
+    significance: "Optimal image quality is essential for accurate downstream analysis.",
     icon: Upload
   },
   {
     id: 2,
-    title: "OCR Extraction",
-    description: "Advanced optical character recognition extracts all textual fields instantly with 99.8% accuracy.",
+    title: "OCR & Field Extraction",
+    description: "Extracts identity fields from the document and maps them to structured data.",
+    indicators: ["NAME", "DOB", "DOCUMENT ID"],
+    significance: "Reliable field extraction is required before identity consistency checks can be performed.",
     icon: ScanText
   },
   {
     id: 3,
     title: "Document Validation",
-    description: "Multi-layered validation checks required fields, dates, document numbers, and checksums in the Machine Readable Zone (MRZ).",
+    description: "Checks structured fields and standardized zones for format and logical consistency.",
+    indicators: ["MRZ Checksums", "Date Logic", "Structure Validation"],
+    significance: "Identifies manufactured or synthetically generated documents.",
     icon: CheckCircle
   },
   {
     id: 4,
-    title: "Tampering Detection",
-    description: "Forensic analysis detects digital manipulation, font inconsistencies, and metadata anomalies.",
+    title: "Tampering Analysis",
+    description: "Inspects the document at the pixel level for signs of digital manipulation.",
+    indicators: ["Image Integrity", "Font Consistency", "Copy/Paste Detection"],
+    significance: "Detects sophisticated forgeries that bypass traditional visual checks.",
     icon: ShieldAlert
   },
   {
     id: 5,
-    title: "Face Verification",
-    description: "Biometric analysis extracts the document portrait and compares it to a live selfie for identity matching.",
+    title: "Biometric Verification",
+    description: "Extracts the document portrait and compares it to a live user selfie.",
+    indicators: ["Face Liveness", "Portrait Extraction", "Identity Match"],
+    significance: "Ensures the person presenting the document is the rightful owner.",
     icon: Fingerprint
   },
   {
     id: 6,
-    title: "Risk Intelligence",
-    description: "An aggregate risk score is calculated from all signals to give you a definitive recommendation.",
+    title: "Risk Scoring",
+    description: "Aggregates all extracted signals to compute a unified assessment.",
+    indicators: ["Signal Weighting", "Threat Heuristics", "Confidence Score"],
+    significance: "Provides a quantifiable metric to support automated decision-making.",
     icon: FileWarning
   },
   {
     id: 7,
-    title: "Final Decision",
-    description: "Get a clear VERIFIED, REVIEW REQUIRED, or HIGH RISK status in seconds.",
+    title: "Screening Output",
+    description: "Generates the final comprehensive evidence package and recommended action.",
+    indicators: ["VERIFIED", "REVIEW REQUIRED", "HIGH RISK"],
+    significance: "Delivers an actionable, explainable result ready for compliance review.",
     icon: BadgeCheck
   }
 ];
@@ -116,12 +130,22 @@ export function ScrollStory() {
                   <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
                     <step.icon className="w-6 h-6" />
                   </div>
-                  <span className="font-mono font-bold tracking-widest text-sm">STEP 0{step.id}</span>
+                  <span className="font-mono font-bold tracking-widest text-sm">LAYER 0{step.id}</span>
                 </div>
                 <h3 className="text-3xl font-bold mb-4">{step.title}</h3>
-                <p className="text-xl text-muted-foreground leading-relaxed">
+                <p className="text-xl text-muted-foreground leading-relaxed mb-6">
                   {step.description}
                 </p>
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {step.indicators.map(ind => (
+                    <span key={ind} className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-xs font-mono text-white/80">{ind}</span>
+                  ))}
+                </div>
+                <div>
+                  <p className="text-sm">
+                    <strong className="text-foreground">Why it matters:</strong> <span className="text-muted-foreground">{step.significance}</span>
+                  </p>
+                </div>
               </div>
             ))}
           </div>

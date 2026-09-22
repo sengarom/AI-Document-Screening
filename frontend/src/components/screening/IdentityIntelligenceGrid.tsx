@@ -81,7 +81,7 @@ export function IdentityIntelligenceGrid() {
       
       {/* Central Abstract Document */}
       <div className="relative z-10 w-[260px] h-[380px] md:w-[320px] md:h-[460px] transform-gpu">
-        <GlassPanel variant="heavy" className="w-full h-full relative p-6 flex flex-col justify-between">
+        <GlassPanel variant="primary" className="w-full h-full relative p-6 flex flex-col justify-between">
           
           <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(rgba(255,255,255,1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,1)_1px,transparent_1px)] bg-[size:32px_32px]"></div>
           
@@ -156,7 +156,7 @@ export function IdentityIntelligenceGrid() {
             exit={{ opacity: 0, y: 10 }}
             className="absolute bottom-4 left-1/2 -translate-x-1/2 md:bottom-auto md:top-12 md:left-[20px] md:translate-x-0 z-50 w-[90%] md:w-[320px]"
           >
-            <GlassPanel variant="heavy">
+            <GlassPanel variant="primary">
               <GlassPanelHeader>
                 <GlassPanelTitle style={{ color: activeNode.color }}>{activeNode.label}</GlassPanelTitle>
               </GlassPanelHeader>

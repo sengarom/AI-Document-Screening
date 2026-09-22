@@ -1,7 +1,7 @@
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   (typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://127.0.0.1:8000'
+    ? 'http://localhost:8000'
     : '');
 import { ScreeningReport } from '@/types';
 
@@ -35,23 +35,24 @@ export const apiService = {
     formData.append('document_type', backendType);
     const res = await fetch(`${API_BASE}/api/documents/upload`, {
       method: 'POST',
+      credentials: 'include',
       body: formData,
     });
     return handleResponse(res);
   },
 
   async processOCR(documentId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/documents/${documentId}/ocr`, { method: 'POST' });
+    const res = await fetch(`${API_BASE}/api/documents/${documentId}/ocr`, { method: 'POST', credentials: 'include' });
     return handleResponse(res);
   },
 
   async processValidation(documentId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/documents/${documentId}/validate`, { method: 'POST' });
+    const res = await fetch(`${API_BASE}/api/documents/${documentId}/validate`, { method: 'POST', credentials: 'include' });
     return handleResponse(res);
   },
 
   async processTampering(documentId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/documents/${documentId}/tampering`, { method: 'POST' });
+    const res = await fetch(`${API_BASE}/api/documents/${documentId}/tampering`, { method: 'POST', credentials: 'include' });
     return handleResponse(res);
   },
 
@@ -60,6 +61,7 @@ export const apiService = {
     formData.append('reference_image', referenceFile);
     const res = await fetch(`${API_BASE}/api/documents/${documentId}/face-verification`, {
       method: 'POST',
+      credentials: 'include',
       body: formData,
     });
     return handleResponse(res);
@@ -68,6 +70,7 @@ export const apiService = {
   async calculateRisk(documentId: string, payload: any): Promise<any> {
     const res = await fetch(`${API_BASE}/api/documents/${documentId}/risk-score`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
@@ -77,6 +80,7 @@ export const apiService = {
   async getScreeningReport(documentId: string, payload: any): Promise<any> {
     const res = await fetch(`${API_BASE}/api/documents/${documentId}/screening-report`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });

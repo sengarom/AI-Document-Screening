@@ -102,13 +102,13 @@ export default function ScreenPage() {
   return (
     <div className="max-w-4xl mx-auto pt-32 pb-20 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-100">Identity Verification</h1>
-        <p className="text-slate-400 mt-2">Upload identity documents for automated verification</p>
+        <h1 className="text-3xl font-bold text-foreground">Identity Verification</h1>
+        <p className="text-muted-foreground mt-2">Upload identity documents for automated verification</p>
       </div>
 
       <div className="space-y-6">
         <Card className="p-6">
-            <h3 className="text-sm font-semibold text-slate-100 uppercase tracking-wider mb-4">1. Select Document Type</h3>
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">1. Select Document Type</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {docTypes.map((type) => (
                     <button
@@ -117,8 +117,8 @@ export default function ScreenPage() {
                         className={cn(
                             "px-4 py-3 rounded-lg border-2 text-sm font-medium transition-colors",
                             documentType === type 
-                                ? "border-blue-500 bg-blue-900/30 text-blue-300" 
-                                : "border-slate-700 text-slate-400 hover:border-slate-500 hover:bg-slate-800"
+                                ? "border-primary bg-primary/20 text-primary" 
+                                : "border-border text-muted-foreground hover:border-border/80 hover:bg-muted"
                         )}
                     >
                         {type}
@@ -130,8 +130,8 @@ export default function ScreenPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className={cn(
             "p-8 transition-colors text-center border-2 border-dashed",
-            docDragActive ? "border-blue-500 bg-blue-900/20" : "border-slate-700",
-            docFile ? "border-slate-600 bg-slate-800/50" : ""
+            docDragActive ? "border-primary bg-primary/10" : "border-border",
+            docFile ? "border-border bg-muted/50" : ""
           )}
           onDragOver={(e) => { e.preventDefault(); setDocDragActive(true); }}
           onDragLeave={() => setDocDragActive(false)}
@@ -150,12 +150,12 @@ export default function ScreenPage() {
             <AnimatePresence mode="wait">
               {!docFile ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-slate-800 flex items-center justify-center">
-                    <UploadCloud className="w-8 h-8 text-slate-400" />
+                  <div className="w-16 h-16 mx-auto rounded-full bg-muted flex items-center justify-center">
+                    <UploadCloud className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium text-slate-100">2. Upload Document</h3>
-                    <p className="text-sm text-slate-400 mt-1">Drag and drop or click to browse</p>
+                    <h3 className="text-lg font-medium text-foreground">2. Upload Document</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Drag and drop or click to browse</p>
                   </div>
                   <Button variant="outline" onClick={() => docInputRef.current?.click()}>
                     Browse Files
@@ -163,12 +163,12 @@ export default function ScreenPage() {
                 </motion.div>
               ) : (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-emerald-900/30 flex items-center justify-center">
-                    <FileIcon className="w-8 h-8 text-emerald-400" />
+                  <div className="w-16 h-16 mx-auto rounded-full bg-success/20 flex items-center justify-center">
+                    <FileIcon className="w-8 h-8 text-success" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium text-slate-100">{docFile.name}</h3>
-                    <p className="text-sm text-slate-400 mt-1">{(docFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <h3 className="text-lg font-medium text-foreground">{docFile.name}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{(docFile.size / 1024 / 1024).toFixed(2)} MB</p>
                   </div>
                   <Button variant="outline" onClick={() => setDocFile(null)}>Remove</Button>
                 </motion.div>
@@ -178,8 +178,8 @@ export default function ScreenPage() {
 
           <Card className={cn(
             "p-8 transition-colors text-center border-2 border-dashed",
-            refDragActive ? "border-blue-500 bg-blue-900/20" : "border-slate-700",
-            refFile ? "border-slate-600 bg-slate-800/50" : ""
+            refDragActive ? "border-primary bg-primary/10" : "border-border",
+            refFile ? "border-border bg-muted/50" : ""
           )}
           onDragOver={(e) => { e.preventDefault(); setRefDragActive(true); }}
           onDragLeave={() => setRefDragActive(false)}
@@ -198,12 +198,12 @@ export default function ScreenPage() {
             <AnimatePresence mode="wait">
               {!refFile ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-slate-800 flex items-center justify-center">
-                    <Camera className="w-8 h-8 text-slate-400" />
+                  <div className="w-16 h-16 mx-auto rounded-full bg-muted flex items-center justify-center">
+                    <Camera className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium text-slate-100">3. Reference Selfie (Optional)</h3>
-                    <p className="text-sm text-slate-400 mt-1">Upload for Face Verification</p>
+                    <h3 className="text-lg font-medium text-foreground">3. Reference Selfie (Optional)</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Upload for Face Verification</p>
                   </div>
                   <Button variant="outline" onClick={() => refInputRef.current?.click()}>
                     Browse Image
@@ -211,12 +211,12 @@ export default function ScreenPage() {
                 </motion.div>
               ) : (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-emerald-900/30 flex items-center justify-center">
-                    <Camera className="w-8 h-8 text-emerald-400" />
+                  <div className="w-16 h-16 mx-auto rounded-full bg-success/20 flex items-center justify-center">
+                    <Camera className="w-8 h-8 text-success" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium text-slate-100">{refFile.name}</h3>
-                    <p className="text-sm text-slate-400 mt-1">{(refFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <h3 className="text-lg font-medium text-foreground">{refFile.name}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{(refFile.size / 1024 / 1024).toFixed(2)} MB</p>
                   </div>
                   <Button variant="outline" onClick={() => setRefFile(null)}>Remove</Button>
                 </motion.div>
@@ -227,7 +227,7 @@ export default function ScreenPage() {
       </div>
 
       {error && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 p-4 rounded-lg bg-red-900/30 text-red-400 flex items-center gap-3">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 p-4 rounded-lg bg-destructive/20 text-destructive flex items-center gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <p className="text-sm font-medium">{error}</p>
         </motion.div>

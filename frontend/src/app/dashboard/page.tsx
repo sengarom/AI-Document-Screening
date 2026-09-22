@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -7,8 +7,11 @@ import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ScreeningReport } from '@/types';
 import { Search, Filter, ArrowRight, Shield, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { SecuritySettings } from '@/components/dashboard/SecuritySettings';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [reports, setReports] = useState<ScreeningReport[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,7 +40,7 @@ export default function DashboardPage() {
     <div className="container mx-auto px-4 pt-32 pb-20 max-w-7xl min-h-screen">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Overview Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">User dashboard</h1>
           <p className="text-muted-foreground">Monitor real-time identity screenings and alerts in this session.</p>
         </div>
         <Button asChild>
@@ -115,7 +118,7 @@ export default function DashboardPage() {
         
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
+            <thead className="text-xs text-muted-foreground bg-muted/50">
               <tr>
                 <th className="px-6 py-3 font-medium">ID / Date</th>
                 <th className="px-6 py-3 font-medium">Document</th>

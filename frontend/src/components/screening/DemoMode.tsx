@@ -22,24 +22,24 @@ const steps: { id: DemoStep; title: string; label: string; icon: React.ElementTy
 ];
 
 export function DemoMode() {
-  const [isOpen, setIsOpen] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [imageError, setImageError] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const isTransitioning = React.useRef(false);
 
   const currentStep = steps[currentStepIndex];
 
-  const startDemo = () => {
-    setIsOpen(true);
-    setCurrentStepIndex(0);
-    setIsFocusMode(false);
-  };
-
   const nextStep = React.useCallback(() => {
+    if (isTransitioning.current) return;
+    isTransitioning.current = true;
+    setTimeout(() => { isTransitioning.current = false; }, 400); // Debounce
     setCurrentStepIndex(prev => prev < steps.length - 1 ? prev + 1 : prev);
   }, []);
 
   const prevStep = React.useCallback(() => {
+    if (isTransitioning.current) return;
+    isTransitioning.current = true;
+    setTimeout(() => { isTransitioning.current = false; }, 400);
     setCurrentStepIndex(prev => prev > 0 ? prev - 1 : prev);
   }, []);
 
@@ -48,66 +48,60 @@ export function DemoMode() {
     setIsFocusMode(false);
   };
 
-  const closeDemo = () => {
-    setIsOpen(false);
-    setTimeout(() => {
-      setCurrentStepIndex(0);
-      setIsFocusMode(false);
-    }, 500);
-  };
-
   const toggleFocusMode = () => setIsFocusMode(prev => !prev);
+
+  // Reliable Auto-progress Timer
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    if (currentStepIndex >= steps.length - 1) {
+      // At final stage: wait longer, then loop back to start
+      timer = setTimeout(() => {
+        setCurrentStepIndex(0);
+      }, 5000);
+    } else {
+      // Normal progression
+      timer = setTimeout(() => {
+        setCurrentStepIndex(prev => prev + 1);
+      }, 3500);
+    }
+
+    // Cleanup always clears the timer when step changes or component unmounts
+    return () => clearTimeout(timer);
+  }, [currentStepIndex]);
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
       if (e.key === "ArrowRight") nextStep();
       if (e.key === "ArrowLeft") prevStep();
-      if (e.key === "Escape") closeDemo();
       if (e.key === "f") toggleFocusMode();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, currentStepIndex, nextStep, prevStep]);
+  }, [nextStep, prevStep]);
 
   return (
-    <>
-      <div className="flex justify-center py-12">
-        <Button onClick={startDemo} size="lg" className="h-12 px-8 text-base bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:scale-105">
-          Explore Interactive Demo
-        </Button>
-      </div>
-
-      <AnimatePresence>
-        {isOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 backdrop-blur-xl p-0 md:p-4">
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.98 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="w-full max-w-7xl h-full md:h-[90vh] flex flex-col relative bg-[#050505] md:rounded-2xl border border-white/10 overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)]"
-            >
+    <div className="container mx-auto px-4 md:px-8 relative z-10">
+      <div
+        className="w-full max-w-7xl h-[80vh] md:h-[85vh] mx-auto flex flex-col relative bg-[#090a0c]/80 backdrop-blur-3xl md:rounded-3xl border border-white/10 overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.8),_inset_0_1px_1px_rgba(255,255,255,0.1)] transition-all duration-500"
+      >
               {/* Header */}
-              <div className="flex justify-between items-center p-4 md:px-8 md:py-6 border-b border-white/5 bg-white/[0.02]">
+              <div className="flex justify-between items-center p-4 md:px-8 md:py-6 border-b border-white/10 bg-white/[0.03]">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center shadow-[0_0_15px_rgba(90,103,216,0.3)]">
+                  <div className="w-10 h-10 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center shadow-[0_0_20px_rgba(90,103,216,0.4)]">
                     <ScanLine className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">Interactive Screening Demo</h2>
-                    <p className="text-white/40 text-xs font-mono uppercase tracking-widest mt-0.5">
+                    <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight drop-shadow-md">Interactive Screening Demo</h2>
+                    <p className="text-white/50 text-xs font-mono uppercase tracking-widest mt-0.5">
                       Simulated Data • Illustrative Output
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button onClick={toggleFocusMode} className="hidden md:flex items-center gap-2 px-3 py-2 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white transition-colors" title="Toggle Focus Mode (F)">
+                  <button onClick={toggleFocusMode} className="hidden md:flex items-center gap-2 px-3 py-2 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/70 hover:text-white transition-all shadow-sm" title="Toggle Focus Mode (F)">
                     {isFocusMode ? <><Minimize className="w-4 h-4" /><span className="text-xs font-mono">Exit Focus</span></> : <><Maximize className="w-4 h-4" /><span className="text-xs font-mono">Focus Mode</span></>}
-                  </button>
-                  <button onClick={closeDemo} className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 text-white/50 hover:bg-white/10 hover:text-white transition-colors border border-white/5 hover:rotate-90 duration-300">
-                    <X className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -116,10 +110,11 @@ export function DemoMode() {
               <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
                 
                 {/* LEFT: Document Preview & Visualization */}
-                <div className={cn("relative flex items-center justify-center p-4 md:p-8 bg-black/40 overflow-hidden border-b lg:border-b-0 lg:border-r border-white/5 transition-all duration-500 ease-in-out", isFocusMode ? "w-full lg:w-full h-full" : "w-full lg:w-2/3 h-[50vh] lg:h-full")}>
+                <div className={cn("relative flex items-center justify-center p-4 md:p-8 bg-black/30 overflow-hidden border-b lg:border-b-0 lg:border-r border-white/10 transition-all duration-500 ease-in-out", isFocusMode ? "w-full lg:w-full h-full" : "w-full lg:w-2/3 h-[50vh] lg:h-full")}>
                   
                   {/* Background Accents */}
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03)_0%,transparent_100%)]"></div>
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(90,103,216,0.08)_0%,transparent_70%)]"></div>
+                  <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] opacity-30"></div>
                   
                   <div className="relative w-full max-w-2xl aspect-[1.4/1] flex items-center justify-center">
                     {/* Document Viewer Frame */}
@@ -234,7 +229,7 @@ export function DemoMode() {
                           {/* Report Step Overlay */}
                           {currentStep.id === "report" && !imageError && (
                             <motion.div key="rep" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="absolute inset-0 z-10 pointer-events-none bg-black/70 backdrop-blur-md flex items-center justify-center p-8">
-                               <GlassPanel variant="heavy" className="w-full max-w-sm text-center p-8 border-white/10 shadow-2xl">
+                               <GlassPanel variant="primary" className="w-full max-w-sm text-center p-8 border-white/10 shadow-2xl">
                                   <FileText className="w-16 h-16 text-white/20 mx-auto mb-4" />
                                   <h3 className="text-xl font-bold text-white mb-2 tracking-widest">SCREENING SUMMARY</h3>
                                   <p className="text-xs text-white/50 uppercase tracking-widest mb-6">Demo Simulation Complete</p>
@@ -279,13 +274,13 @@ export function DemoMode() {
                 </div>
 
                 {/* RIGHT: Step Information & Navigation */}
-                <div className={cn("w-full flex flex-col bg-[#080808] z-20 transition-all duration-500 ease-in-out origin-right", isFocusMode ? "lg:w-0 h-0 lg:h-full opacity-0 overflow-hidden pointer-events-none" : "lg:w-1/3 h-[50vh] lg:h-full opacity-100")}>
+                <div className={cn("w-full flex flex-col bg-white/[0.01] z-20 transition-all duration-500 ease-in-out origin-right", isFocusMode ? "lg:w-0 h-0 lg:h-full opacity-0 overflow-hidden pointer-events-none" : "lg:w-1/3 h-[50vh] lg:h-full opacity-100")}>
                   
                   {/* Progress Timeline Header */}
-                  <div className="px-6 py-5 border-b border-white/5 bg-white/[0.01]">
+                  <div className="px-6 py-5 border-b border-white/5 bg-white/[0.02]">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-mono text-white/40 uppercase tracking-widest">Demo Progress</span>
-                      <span className="text-xs font-mono text-white/60">{currentStepIndex + 1} / {steps.length}</span>
+                      <span className="text-xs font-mono text-white/50 uppercase tracking-widest">Demo Progress</span>
+                      <span className="text-xs font-mono text-white/70">{currentStepIndex + 1} / {steps.length}</span>
                     </div>
                     <div className="flex gap-1">
                       {steps.map((s, i) => (
@@ -455,12 +450,12 @@ export function DemoMode() {
                   </div>
 
                   {/* Navigation Controls */}
-                  <div className="p-4 md:p-6 border-t border-white/5 bg-black/40 flex justify-between items-center gap-3 md:gap-4 shrink-0">
+                  <div className="p-4 md:p-6 border-t border-white/5 bg-white/[0.02] flex justify-between items-center gap-3 md:gap-4 shrink-0">
                      <Button 
                        variant="outline" 
                        onClick={prevStep}
                        disabled={currentStepIndex === 0}
-                       className="bg-transparent border-white/10 text-white hover:bg-white/5 px-3 md:px-4 h-12"
+                       className="bg-white/[0.02] border-white/10 text-white hover:bg-white/[0.05] hover:border-white/20 hover:shadow-[0_0_15px_rgba(255,255,255,0.05)] hover:-translate-y-[1px] transition-all duration-300 px-3 md:px-4 h-12"
                      >
                        <ChevronLeft className="w-4 h-4 md:mr-2" /> <span className="hidden md:inline">Previous</span>
                      </Button>
@@ -468,14 +463,14 @@ export function DemoMode() {
                      {currentStepIndex === steps.length - 1 ? (
                        <Button 
                          onClick={restartDemo}
-                         className="flex-1 bg-white/10 text-white hover:bg-white/20 border border-white/20 h-12"
+                         className="flex-1 bg-white/10 text-white hover:bg-white/20 border border-white/20 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:-translate-y-[1px] transition-all duration-300 h-12"
                        >
                          <RotateCcw className="w-4 h-4 mr-2" /> Restart Demo
                        </Button>
                      ) : (
                        <Button 
                          onClick={nextStep}
-                         className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 h-12 shadow-[0_0_15px_rgba(var(--primary),0.3)]"
+                         className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 h-12 shadow-[0_0_15px_rgba(var(--primary),0.3)] hover:shadow-[0_0_25px_rgba(90,103,216,0.6)] hover:-translate-y-[1px] transition-all duration-300 border border-primary/20"
                        >
                          Next Step <ChevronRight className="w-4 h-4 ml-2" />
                        </Button>
@@ -485,10 +480,7 @@ export function DemoMode() {
                 </div>
               </div>
 
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </>
+      </div>
+    </div>
   );
 }

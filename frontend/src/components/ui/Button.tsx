@@ -8,14 +8,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
+        default: "relative overflow-hidden bg-primary/80 backdrop-blur-md text-primary-foreground border border-primary/50 shadow-[0_0_20px_rgba(90,103,216,0.3)] hover:shadow-[0_0_30px_rgba(90,103,216,0.6)] hover:bg-primary/90 hover:-translate-y-0.5 transition-all duration-300 group after:absolute after:inset-0 after:-translate-x-full after:bg-gradient-to-r after:from-transparent after:via-white/[0.15] after:to-transparent hover:after:translate-x-full after:duration-1000 after:ease-in-out after:transition-transform motion-reduce:after:hidden motion-reduce:transition-none",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm",
+          "bg-destructive/90 text-destructive-foreground hover:bg-destructive shadow-sm",
         outline:
-          "border border-border bg-transparent hover:bg-accent hover:text-accent-foreground",
+          "border border-white/10 bg-white/[0.02] backdrop-blur-md hover:bg-white/[0.06] hover:border-white/20 hover:text-white hover:shadow-[0_0_15px_rgba(255,255,255,0.05)] hover:-translate-y-0.5 transition-all duration-300 text-white/80",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+          "bg-white/[0.05] text-white/90 backdrop-blur-md border border-white/5 hover:bg-white/[0.1] hover:border-white/10 hover:shadow-[0_0_20px_rgba(255,255,255,0.08)] hover:-translate-y-0.5 transition-all duration-300",
+        ghost: "hover:bg-white/[0.05] hover:text-white transition-all duration-300",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

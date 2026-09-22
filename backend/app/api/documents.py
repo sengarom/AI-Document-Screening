@@ -1,6 +1,6 @@
 """Document upload API route."""
 
-from fastapi import APIRouter, File, UploadFile, Form, status, HTTPException
+from fastapi import APIRouter, File, UploadFile, Form, status, HTTPException, Depends
 from fastapi.concurrency import run_in_threadpool
 from pathlib import Path
 
@@ -8,6 +8,9 @@ from app.core.config import ORIGINAL_UPLOADS_DIR, PROCESSED_UPLOADS_DIR
 from app.schemas.documents import DocumentUploadResponse
 from app.services.document.upload_service import store_and_preprocess_upload
 from app.services.document.metadata_service import save_document_metadata, get_document_metadata
+from app.core.auth import get_current_user
+
+# ... imports ...
 from app.services.ocr.ocr_service import extract_text
 from app.schemas.ocr import OCRResponse
 from app.schemas.validation import ValidationResponse
@@ -23,8 +26,23 @@ from app.services.report.report_service import generate_screening_report
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
+def require_document_ownership(document_id: str, current_user: dict = Depends(get_current_user)):
+    doc_meta = get_document_metadata(document_id)
+    if "owner_id" not in doc_meta:
+        # For legacy documents that don't have an owner, we can either allow or deny. 
+        # Since this is a demo, we will let admins pass, but fail others.
+        if current_user["role"] != "ADMIN":
+            raise HTTPException(status_code=403, detail="Forbidden")
+    elif doc_meta["owner_id"] != current_user["id"] and current_user["role"] != "ADMIN":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return current_user
+
 @router.post("/upload", response_model=DocumentUploadResponse, status_code=status.HTTP_201_CREATED)
-async def upload_document(file: UploadFile = File(...), document_type: str = Form("PASSPORT")) -> DocumentUploadResponse:
+async def upload_document(
+    file: UploadFile = File(...), 
+    document_type: str = Form("PASSPORT"),
+    current_user: dict = Depends(get_current_user)
+) -> DocumentUploadResponse:
     """Store a safe image upload and create its separate processed derivative."""
     if document_type.upper() not in ["PASSPORT", "VISA", "PAN", "AADHAAR"]:
         raise HTTPException(status_code=400, detail="Unsupported document type.")
@@ -35,7 +53,7 @@ async def upload_document(file: UploadFile = File(...), document_type: str = For
         processed_dir=PROCESSED_UPLOADS_DIR,
     )
     
-    save_document_metadata(stored_upload.document_id, document_type.upper())
+    save_document_metadata(stored_upload.document_id, document_type.upper(), owner_id=current_user["id"])
 
     return DocumentUploadResponse(
         success=True,
@@ -52,7 +70,7 @@ async def upload_document(file: UploadFile = File(...), document_type: str = For
     )
 
 @router.post("/{document_id}/ocr", response_model=OCRResponse, status_code=status.HTTP_200_OK)
-async def run_ocr_on_document(document_id: str) -> OCRResponse:
+async def run_ocr_on_document(document_id: str, _=Depends(require_document_ownership)) -> OCRResponse:
     """Run PaddleOCR extraction on a previously uploaded and processed document."""
     stem = Path(document_id).stem
     processed_file = PROCESSED_UPLOADS_DIR / f"{stem}_processed.png"
@@ -67,10 +85,12 @@ async def run_ocr_on_document(document_id: str) -> OCRResponse:
         result = await run_in_threadpool(extract_text, str(processed_file), document_id, doc_type)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Risk scoring failed due to an internal server error.")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="OCR failed due to an internal server error.")
 
 @router.post("/{document_id}/validate", response_model=ValidationResponse, status_code=status.HTTP_200_OK)
-async def validate_document_endpoint(document_id: str) -> ValidationResponse:
+async def validate_document_endpoint(document_id: str, _=Depends(require_document_ownership)) -> ValidationResponse:
     """Run Document Validation on a previously uploaded document."""
     ocr_result = await run_ocr_on_document(document_id)
     
@@ -81,7 +101,7 @@ async def validate_document_endpoint(document_id: str) -> ValidationResponse:
     return validation_result
 
 @router.post("/{document_id}/tampering", response_model=TamperingResponse, status_code=status.HTTP_200_OK)
-async def run_tampering_analysis(document_id: str) -> TamperingResponse:
+async def run_tampering_analysis(document_id: str, _=Depends(require_document_ownership)) -> TamperingResponse:
     """Run Document Tampering Detection on the original uploaded document."""
     stem = Path(document_id).stem
     original_files = list(ORIGINAL_UPLOADS_DIR.glob(f"{stem}.*"))
@@ -96,10 +116,12 @@ async def run_tampering_analysis(document_id: str) -> TamperingResponse:
         result = await run_in_threadpool(analyze_document, document_id, str(original_file))
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Risk scoring failed due to an internal server error.")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Tampering analysis failed due to an internal server error.")
 
 @router.post("/{document_id}/face-verification", response_model=FaceVerificationResponse, status_code=status.HTTP_200_OK)
-async def verify_document_face(document_id: str, reference_image: UploadFile = File(...)) -> FaceVerificationResponse:
+async def verify_document_face(document_id: str, reference_image: UploadFile = File(...), _=Depends(require_document_ownership)) -> FaceVerificationResponse:
     stem = Path(document_id).stem
     processed_file = PROCESSED_UPLOADS_DIR / f"{stem}_processed.png"
 
@@ -111,18 +133,22 @@ async def verify_document_face(document_id: str, reference_image: UploadFile = F
         result = await run_in_threadpool(verify_faces, document_id, str(processed_file), ref_bytes)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Risk scoring failed due to an internal server error.")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Face verification failed due to an internal server error.")
 
 @router.post("/{document_id}/risk-score", response_model=RiskScoreResponse, status_code=status.HTTP_200_OK)
-async def calculate_risk_endpoint(document_id: str, payload: RiskScoreRequest) -> RiskScoreResponse:
+async def calculate_risk_endpoint(document_id: str, payload: RiskScoreRequest, _=Depends(require_document_ownership)) -> RiskScoreResponse:
     try:
         result = calculate_risk(payload)
         return result
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail="Risk scoring failed due to an internal server error.")
 
 @router.post("/{document_id}/screening-report", response_model=ScreeningReportResponse, status_code=status.HTTP_200_OK)
-async def generate_report_endpoint(document_id: str, payload: ScreeningReportRequest) -> ScreeningReportResponse:
+async def generate_report_endpoint(document_id: str, payload: ScreeningReportRequest, _=Depends(require_document_ownership)) -> ScreeningReportResponse:
     if payload.ocr_result.document_id != document_id:
         raise HTTPException(status_code=400, detail="Document ID does not match ocr_result document_id.")
     if payload.validation_result.document_id != document_id:
