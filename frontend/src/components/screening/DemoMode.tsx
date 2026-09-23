@@ -8,16 +8,16 @@ import { Button } from "@/components/ui/Button";
 import { Upload, ScanText, FileCheck, Fingerprint, ShieldAlert, Cpu, FileText, ChevronRight, ChevronLeft, RotateCcw, X, Image as ImageIcon, ScanLine, Activity, AlertTriangle, Maximize, Minimize } from "lucide-react";
 import Image from "next/image";
 
-type DemoStep = "upload" | "ocr" | "validation" | "mrz" | "forensics" | "face" | "risk" | "report";
+type DemoStep = "upload" | "ocr" | "validation" | "forensics" | "face" | "identity_links" | "risk" | "report";
 
 const steps: { id: DemoStep; title: string; label: string; icon: React.ElementType }[] = [
-  { id: "upload", title: "DOCUMENT UPLOAD", label: "01 — DOCUMENT UPLOAD", icon: Upload },
-  { id: "ocr", title: "OCR & FIELD EXTRACTION", label: "02 — OCR & FIELD EXTRACTION", icon: ScanText },
-  { id: "validation", title: "FIELD VALIDATION", label: "03 — FIELD VALIDATION", icon: FileCheck },
-  { id: "mrz", title: "MRZ ANALYSIS", label: "04 — MRZ ANALYSIS", icon: ScanLine },
-  { id: "forensics", title: "TAMPERING ANALYSIS", label: "05 — TAMPERING ANALYSIS", icon: ShieldAlert },
-  { id: "face", title: "FACE VERIFICATION", label: "06 — FACE VERIFICATION", icon: Fingerprint },
-  { id: "risk", title: "RISK SCORING", label: "07 — RISK SCORING", icon: Cpu },
+  { id: "upload", title: "DOCUMENT INGESTION", label: "01 — DOCUMENT INGESTION", icon: Upload },
+  { id: "ocr", title: "OCR EXTRACTION", label: "02 — OCR EXTRACTION", icon: ScanText },
+  { id: "validation", title: "DOCUMENT VALIDATION", label: "03 — DOCUMENT VALIDATION", icon: FileCheck },
+  { id: "forensics", title: "IMAGE FORENSICS", label: "04 — IMAGE FORENSICS", icon: ShieldAlert },
+  { id: "face", title: "FACE VERIFICATION", label: "05 — FACE VERIFICATION", icon: Fingerprint },
+  { id: "identity_links", title: "IDENTITY LINK ANALYSIS", label: "06 — IDENTITY LINK ANALYSIS", icon: ScanLine },
+  { id: "risk", title: "RISK ASSESSMENT", label: "07 — RISK ASSESSMENT", icon: Cpu },
   { id: "report", title: "SCREENING REPORT", label: "08 — SCREENING REPORT", icon: FileText },
 ];
 
@@ -177,12 +177,13 @@ export function DemoMode() {
                             </motion.div>
                           )}
 
-                          {/* MRZ Step Overlay */}
-                          {currentStep.id === "mrz" && !imageError && (
-                            <motion.div key="mrz" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="absolute inset-0 z-10 pointer-events-none flex flex-col justify-end pb-[7%] px-[5%]">
-                              <motion.div initial={{height:0, opacity:0}} animate={{height:"18%", opacity:1}} className="w-full border-2 border-emerald-400 bg-emerald-400/20 rounded-sm relative overflow-hidden flex items-center justify-center backdrop-blur-sm">
-                                <motion.div animate={{ left: ['-20%', '120%'] }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="absolute top-0 bottom-0 w-16 bg-emerald-300/40 blur-md transform skew-x-[-20deg]" />
-                              </motion.div>
+                          {/* Identity Links Step Overlay */}
+                          {currentStep.id === "identity_links" && !imageError && (
+                            <motion.div key="idl" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="absolute inset-0 z-10 pointer-events-none bg-black/40 backdrop-blur-[1px] flex items-center justify-center">
+                              <div className="w-32 h-32 rounded-full border border-blue-500/30 flex items-center justify-center relative">
+                                <motion.div animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }} className="absolute inset-0 rounded-full border-t-2 border-blue-400"></motion.div>
+                                <ScanLine className="w-8 h-8 text-blue-400" />
+                              </div>
                             </motion.div>
                           )}
 
@@ -362,19 +363,16 @@ export function DemoMode() {
                             </div>
                           )}
 
-                          {currentStep.id === "mrz" && (
+                          {currentStep.id === "identity_links" && (
                             <div className="space-y-4">
-                              <p className="text-sm text-white/60 leading-relaxed">Illustrative Machine Readable Zone (MRZ) inspection.</p>
-                              <div className="p-4 rounded-lg bg-white/5 border border-white/10 overflow-hidden">
-                                <span className="text-[10px] uppercase tracking-widest text-white/40 block mb-2">Simulated MRZ Data</span>
-                                <div className="font-mono text-[10px] md:text-xs text-white/50 leading-relaxed break-all">
-                                  P&lt;IND&lt;&lt;HARMANPREET&lt;KAUR&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;<br/>
-                                  W9592099&lt;5IND9601226F29030570075150500324&lt;48
-                                </div>
+                              <p className="text-sm text-white/60 leading-relaxed">Comparing face embedding against previous authorized verification cases.</p>
+                              <div className="p-4 rounded-lg bg-white/5 border border-white/10 flex flex-col gap-3">
+                                <div className="flex justify-between items-center"><span className="text-xs text-white/60">Historical Search</span><span className="text-xs font-mono text-white/80">IN PROGRESS</span></div>
+                                <div className="flex justify-between items-center"><span className="text-xs text-white/60">Matches Found</span><span className="text-xs font-mono text-white/40">CALCULATING</span></div>
                               </div>
                               <div className="p-3 rounded-lg bg-white/5 border border-white/10 flex justify-between items-center">
                                 <span className="text-[10px] uppercase tracking-widest text-white/40">Status</span>
-                                <span className="text-xs font-mono text-white/60">DEMO / AWAITING BACKEND</span>
+                                <span className="text-xs font-mono text-white/60">SIMULATED DEMO</span>
                               </div>
                             </div>
                           )}

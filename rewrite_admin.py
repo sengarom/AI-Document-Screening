@@ -1,4 +1,4 @@
-"use client";
+content = """\"use client\";
 
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -284,3 +284,7 @@ export default function AdminPage() {
     </div>
   );
 }
+"""
+
+with open('frontend/src/app/admin/page.tsx', 'w') as f:
+    f.write(content)

@@ -36,6 +36,8 @@ class UserOut(BaseModel):
 def authenticate_user(email: str, password: str) -> Optional[dict]:
     user = DEMO_USERS.get(email)
     if user and user["password_hash"] == hash_password(password):
+        if user.get("status", "ACTIVE") == "DISABLED":
+            return None
         return user
     return None
 

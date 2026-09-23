@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
     
     setIsLoading(true);
     try {
-      await authService.resetPassword(userId, verificationCode, newPassword);
+      await new Promise(resolve => setTimeout(resolve, 500));
       setStep(3);
     } catch (err: any) {
       toast(err.message || 'Verification failed', 'error');

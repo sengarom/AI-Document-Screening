@@ -66,7 +66,7 @@ const nodes = [
     color: "#a3e635", // lime-400
     positionClass: "bottom-[10%] right-[10%] md:right-[25%]",
     description: "Presents findings, evidence, and relevant warnings.",
-    state: "REPORT NOT GENERATED",
+    state: "SIMULATED REPORT READY",
     source: "Not connected"
   }
 ];

@@ -9,16 +9,25 @@ import { ScreeningReport } from '@/types';
 import { Search, Filter, ArrowRight, Shield, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { SecuritySettings } from '@/components/dashboard/SecuritySettings';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatCaseId } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [reports, setReports] = useState<ScreeningReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   useEffect(() => {
-    // Only one report is stored in sessionStorage at the moment.
+    const storedReports = sessionStorage.getItem('screeningReports');
     const storedReport = sessionStorage.getItem('screeningReport');
-    if (storedReport) {
+    if (storedReports) {
+      try {
+        setReports(JSON.parse(storedReports));
+      } catch (e) {
+        setReports([]);
+      }
+    } else if (storedReport) {
       try {
         const parsed = JSON.parse(storedReport);
         setReports([parsed]);
@@ -30,6 +39,16 @@ export default function DashboardPage() {
     }
     setLoading(false);
   }, []);
+
+  const filteredReports = reports.filter(r => {
+    if (statusFilter !== 'ALL' && r.status !== statusFilter) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      const cId = formatCaseId(r.id).toLowerCase();
+      if (!cId.includes(s) && !r.documentType.toLowerCase().includes(s)) return false;
+    }
+    return true;
+  });
 
   const total = reports.length;
   const clear = reports.filter(r => r.status === 'CLEAR').length;
@@ -105,13 +124,25 @@ export default function DashboardPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input 
               type="text" 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search ID, name, or document..." 
               className="w-full bg-background border border-border rounded-md pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-9">
-              <Filter className="w-4 h-4 mr-2" /> Filter
+            <select 
+              value={statusFilter} 
+              onChange={(e) => setStatusFilter(e.target.value)} 
+              className="h-9 bg-background border border-border rounded-md px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="ALL">All Status</option>
+              <option value="CLEAR">Clear</option>
+              <option value="REVIEW REQUIRED">Review Required</option>
+              <option value="HIGH RISK">High Risk</option>
+            </select>
+            <Button variant="outline" size="sm" className="h-9" onClick={() => { setSearch(''); setStatusFilter('ALL'); }}>
+              Reset Filters
             </Button>
           </div>
         </div>
@@ -136,10 +167,14 @@ export default function DashboardPage() {
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No screening reports yet. Run a document screening analysis to see results here.</td>
                 </tr>
-              ) : reports.map((report) => (
+              ) : filteredReports.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No cases match your filters.</td>
+                </tr>
+              ) : filteredReports.map((report) => (
                 <tr key={report.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="font-mono text-foreground font-medium">{report.id}</div>
+                    <div className="font-mono text-foreground font-medium">{formatCaseId(report.id)}</div>
                     <div className="text-xs text-muted-foreground mt-1">
                       {new Date(report.date).toLocaleString(undefined, {
                         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'

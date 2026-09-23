@@ -25,6 +25,14 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 export const apiService = {
+  async getIdentityLinks(documentId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/documents/${documentId}/identity-links`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+    return handleResponse<any>(res);
+  },
+
   async uploadDocument(file: File, documentType: string = 'PASSPORT'): Promise<{ document_id: string; filename: string }> {
     const formData = new FormData();
     formData.append('file', file);

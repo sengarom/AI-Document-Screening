@@ -6,6 +6,9 @@ import { motion, } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Upload, ScanText, Fingerprint, ShieldAlert, BadgeCheck, FileWarning, CheckCircle } from 'lucide-react';
 
+import { ScanLine } from 'lucide-react';
+import { ReportPreviewModal } from './ReportPreviewModal';
+
 const steps = [
   {
     id: 1,
@@ -43,12 +46,20 @@ const steps = [
     id: 5,
     title: "Biometric Verification",
     description: "Extracts the document portrait and compares it to a live user selfie.",
-    indicators: ["Face Liveness", "Portrait Extraction", "Identity Match"],
+    indicators: ["Face Extraction", "Similarity Scoring"],
     significance: "Ensures the person presenting the document is the rightful owner.",
     icon: Fingerprint
   },
   {
     id: 6,
+    title: "Identity Link Analysis",
+    description: "Correlates the face embedding against historical authorized records.",
+    indicators: ["Cross-Matching", "Identity De-duplication"],
+    significance: "Flags potential identity fraud across multiple accounts.",
+    icon: ScanLine
+  },
+  {
+    id: 7,
     title: "Risk Scoring",
     description: "Aggregates all extracted signals to compute a unified assessment.",
     indicators: ["Signal Weighting", "Threat Heuristics", "Confidence Score"],
@@ -56,10 +67,10 @@ const steps = [
     icon: FileWarning
   },
   {
-    id: 7,
-    title: "Screening Output",
+    id: 8,
+    title: "Explainability",
     description: "Generates the final comprehensive evidence package and recommended action.",
-    indicators: ["VERIFIED", "REVIEW REQUIRED", "HIGH RISK"],
+    indicators: ["Clear Evidence", "Deterministic Flags", "Review Action"],
     significance: "Delivers an actionable, explainable result ready for compliance review.",
     icon: BadgeCheck
   }
@@ -68,6 +79,7 @@ const steps = [
 export function ScrollStory() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeStep, setActiveStep] = useState(1);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Use an IntersectionObserver approach or simple scroll tracking for performance
   useEffect(() => {
@@ -99,7 +111,7 @@ export function ScrollStory() {
       <div className="container mx-auto px-4 md:px-8 mb-16 text-center max-w-3xl">
         <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
           One document.<br/>
-          Seven layers of intelligence.
+          Eight layers of intelligence.
         </h2>
         <p className="text-lg text-muted-foreground">
           Scroll to see how our AI breaks down and verifies every element of an identity document in real-time.
@@ -112,7 +124,8 @@ export function ScrollStory() {
           {/* LEFT SIDE: STICKY VISUALIZATION */}
           <div className="w-full md:w-1/2 relative">
             <div className="sticky top-32 h-[500px] rounded-2xl border border-border bg-card/30 overflow-hidden flex items-center justify-center p-8 transition-all duration-500 shadow-2xl">
-              <VisualizationEngine activeStep={activeStep} />
+              <VisualizationEngine activeStep={activeStep} onOpenPreview={() => setIsPreviewOpen(true)} />
+              <ReportPreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} />
             </div>
           </div>
 
@@ -157,7 +170,7 @@ export function ScrollStory() {
 }
 
 // Visual engine component that switches state based on the active step
-function VisualizationEngine({ activeStep }: { activeStep: number }) {
+function VisualizationEngine({ activeStep, onOpenPreview }: { activeStep: number, onOpenPreview: () => void }) {
   return (
     <div className="w-full h-full relative flex items-center justify-center">
       {/* Base Document Outline */}
@@ -310,9 +323,9 @@ function VisualizationEngine({ activeStep }: { activeStep: number }) {
           )}
         </AnimatePresence>
 
-        {/* Step 7: Decision */}
+        {/* Step 7: Risk Scoring */}
         <AnimatePresence mode="wait">
-          {activeStep >= 7 && (
+          {activeStep === 7 && (
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -322,11 +335,42 @@ function VisualizationEngine({ activeStep }: { activeStep: number }) {
               <div className="w-16 h-16 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center mb-6">
                 <FileWarning className="w-6 h-6 text-white/20" />
               </div>
-              <h3 className="text-xl font-bold text-white/40 mb-2 tracking-widest">REPORT PREVIEW</h3>
+              <h3 className="text-xl font-bold text-white mb-2 tracking-widest text-center">SIMULATED SCREENING REPORT</h3>
               
-              <div className="absolute bottom-8 bg-white/5 text-white/50 text-[10px] font-bold px-3 py-1 rounded border border-white/10 tracking-widest whitespace-nowrap">
-                REPORT NOT GENERATED
+              <div className="absolute bottom-8 bg-primary/20 text-primary text-[10px] font-bold px-3 py-1 rounded border border-primary/50 tracking-widest whitespace-nowrap">
+                DEMO REPORT READY
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Step 8: Explainability */}
+        <AnimatePresence mode="wait">
+          {activeStep === 8 && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 p-6 flex flex-col items-center justify-center bg-black/80 z-50 backdrop-blur-md"
+            >
+              <h3 className="text-xl font-bold text-white mb-6 tracking-widest text-center">EXPLAINABILITY<br/><span className="text-sm text-muted-foreground mt-2 inline-block">WHY DID THE SYSTEM RETURN THIS RESULT?</span></h3>
+              
+              <div className="w-full space-y-2 text-xs font-mono text-left mb-6 overflow-y-auto max-h-[50%] p-4 bg-white/5 border border-white/10 rounded">
+                <p><span className="text-success">01</span> DOCUMENT INGESTION: Success</p>
+                <p><span className="text-success">02</span> OCR EXTRACTION: Success</p>
+                <p><span className="text-success">03</span> DOCUMENT VALIDATION: Completed</p>
+                <p><span className="text-warning">04</span> IMAGE FORENSICS: Review needed</p>
+                <p><span className="text-success">05</span> FACE VERIFICATION: Completed</p>
+                <p><span className="text-muted-foreground">06</span> IDENTITY LINKS: No Match</p>
+                <p><span className="text-warning">07</span> RISK ASSESSMENT: REVIEW REQUIRED</p>
+              </div>
+
+              <button 
+                onClick={onOpenPreview}
+                className="bg-primary text-primary-foreground px-4 py-2 rounded-md font-bold text-sm hover:bg-primary/90 transition-colors"
+              >
+                VIEW REPORT PREVIEW
+              </button>
             </motion.div>
           )}
         </AnimatePresence>

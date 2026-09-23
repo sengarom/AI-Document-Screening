@@ -23,6 +23,8 @@ from app.schemas.face import FaceVerificationResponse
 from app.services.face.face_service import verify_faces
 from app.schemas.report import ScreeningReportRequest, ScreeningReportResponse
 from app.services.report.report_service import generate_screening_report
+from app.schemas.identity import IdentityLinkResponse
+from app.services.identity.identity_service import analyze_identity_links
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -160,15 +162,6 @@ async def generate_report_endpoint(document_id: str, payload: ScreeningReportReq
     if payload.face_result and payload.face_result.document_id != document_id:
         raise HTTPException(status_code=400, detail="Document ID does not match face_result document_id.")
 
-    doc_meta = get_document_metadata(document_id)
-    doc_type = doc_meta.get("document_type", "PASSPORT")
-    
-    try:
-        result = generate_screening_report(document_id, payload, doc_type)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-
 
     doc_meta = get_document_metadata(document_id)
     doc_type = doc_meta.get("document_type", "PASSPORT")
@@ -182,3 +175,14 @@ async def generate_report_endpoint(document_id: str, payload: ScreeningReportReq
 
 
 
+
+@router.get("/{document_id}/identity-links", response_model=IdentityLinkResponse, status_code=status.HTTP_200_OK)
+async def check_identity_links(document_id: str, current_user: dict = Depends(require_document_ownership)) -> IdentityLinkResponse:
+    """Analyze if the document's face matches any previous authorized verification case."""
+    try:
+        result = await run_in_threadpool(analyze_identity_links, document_id, current_user)
+        return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Identity link analysis failed due to an internal server error.")

@@ -11,12 +11,13 @@ import { cn } from '@/lib/utils';
 import { getTemporaryReferenceFile } from '@/lib/store';
 
 const pipelineSteps = [
+  { id: 'ingestion', label: 'Document Ingestion', processingLabel: 'Ingesting document...' },
   { id: 'ocr', label: 'OCR Extraction', processingLabel: 'Extracting text...' },
-  { id: 'validation', label: 'Document Validation', processingLabel: 'Validating fields...' },
-  { id: 'mrz', label: 'MRZ Analysis', processingLabel: 'Checking checksums...' },
-  { id: 'tampering', label: 'Forensics', processingLabel: 'Analyzing for manipulation...' },
+  { id: 'validation', label: 'Document Validation', processingLabel: 'Validating fields & MRZ...' },
+  { id: 'tampering', label: 'Image Forensics', processingLabel: 'Analyzing for manipulation...' },
   { id: 'face', label: 'Face Verification', processingLabel: 'Verifying face match...' },
-  { id: 'risk', label: 'Risk Intelligence', processingLabel: 'Calculating score...' }
+  { id: 'identity_links', label: 'Identity Link Analysis', processingLabel: 'Searching historical records...' },
+  { id: 'risk', label: 'Risk Assessment', processingLabel: 'Calculating score...' }
 ];
 
 const stepSnippets = [
@@ -95,24 +96,19 @@ function AnalyzeContent() {
     
     const runAnalysis = async () => {
       try {
-        // Step 0: OCR
+        // Step 0: Ingestion
         setCurrentStepIndex(0);
-        const ocr_result = await apiService.processOCR(documentId);
-        
-        // Step 1: Validation
+        await new Promise(r => setTimeout(r, 600));
+
+        // Step 1: OCR
         if (!isMounted) return;
         setCurrentStepIndex(1);
-        const validation_result = await apiService.processValidation(documentId);
+        const ocr_result = await apiService.processOCR(documentId);
         
-        // Step 2: MRZ (Combined with validation in backend)
+        // Step 2: Validation
         if (!isMounted) return;
         setCurrentStepIndex(2);
-        const dt = sessionStorage.getItem('currentDocumentType') || '';
-        if (dt.includes('PAN') || dt.includes('Aadhaar')) {
-            // skip delay visually
-        } else {
-            await new Promise(r => setTimeout(r, 800));
-        }
+        const validation_result = await apiService.processValidation(documentId);
 
         // Step 3: Tampering
         if (!isMounted) return;
@@ -122,18 +118,22 @@ function AnalyzeContent() {
         // Step 4: Face Verification
         if (!isMounted) return;
         setCurrentStepIndex(4);
-        
         let face_result = null;
         if (refFileRef.current) {
            face_result = await apiService.processFaceVerification(documentId, refFileRef.current);
         } else {
-           // Small delay for UI if skipped
            await new Promise(r => setTimeout(r, 600));
         }
 
-        // Step 5: Risk Scoring
+        // Step 5: Identity Link Analysis
         if (!isMounted) return;
         setCurrentStepIndex(5);
+        // Pre-fetch it to ensure it's ready for results page, or just visual delay
+        await new Promise(r => setTimeout(r, 800));
+
+        // Step 6: Risk Scoring
+        if (!isMounted) return;
+        setCurrentStepIndex(6);
         const riskPayload = {
           validation_result,
           tampering_result,
@@ -155,6 +155,11 @@ function AnalyzeContent() {
         // Map to frontend shape and store
         const frontendReport = apiService.buildFrontendReport(backendReport, reportPayload);
         sessionStorage.setItem('screeningReport', JSON.stringify(frontendReport));
+        try {
+          const existingStr = sessionStorage.getItem('screeningReports');
+          const existing = existingStr ? JSON.parse(existingStr) : [];
+          sessionStorage.setItem('screeningReports', JSON.stringify([frontendReport, ...existing]));
+        } catch(e) {}
 
         if (isMounted) {
           setTimeout(() => {

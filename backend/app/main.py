@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.documents import router as documents_router
 from app.api.health import router as health_router
 from app.api.auth import router as auth_router
+from app.api.admin_users import router as admin_users_router
 
 app = FastAPI(
     title="AI Document Screening System",
@@ -30,4 +31,5 @@ app.add_middleware(
 
 app.include_router(health_router, prefix="/api")
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
+app.include_router(admin_users_router, prefix="/api/admin", tags=["Admin"])
 app.include_router(documents_router, prefix="/api")

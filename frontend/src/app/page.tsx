@@ -88,11 +88,13 @@ export default function Home() {
         <div className="container mx-auto px-4 relative z-10">
           <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-90">
             {[
-              { icon: FileCheck, text: "OCR EXTRACTION" },
-              { icon: ScanLine, text: "MRZ VALIDATION" },
-              { icon: ShieldAlert, text: "DOCUMENT FORENSICS" },
-              { icon: Fingerprint, text: "FACE VERIFICATION" },
-              { icon: Cpu, text: "RISK SCORING" },
+              { icon: FileCheck, text: "DOCUMENT" },
+              { icon: ScanLine, text: "OCR" },
+              { icon: ShieldAlert, text: "VALIDATION" },
+              { icon: Cpu, text: "FORENSICS" },
+              { icon: Fingerprint, text: "FACE" },
+              { icon: Fingerprint, text: "IDENTITY LINKS" },
+              { icon: Cpu, text: "RISK" },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-3 group cursor-default">
                 <item.icon className="w-5 h-5 text-white/40 group-hover:text-primary transition-colors duration-500 group-hover:drop-shadow-[0_0_8px_rgba(90,103,216,0.8)]" />
