@@ -53,7 +53,8 @@ export interface ScreeningReport {
   id: string;
   date: string;
   documentType: DocumentType;
-  status: 'CLEAR' | 'REVIEW REQUIRED' | 'HIGH RISK';
+  status: 'CLEAR' | 'REQUIRE REVIEW' | 'REJECTED' | 'REVIEW REQUIRED' | 'HIGH RISK';
+  decision_reason?: string;
   ocr: OCRResult;
   validation: ValidationResult;
   mrz: MRZResult;

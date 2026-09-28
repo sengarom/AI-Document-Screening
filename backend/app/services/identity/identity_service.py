@@ -34,31 +34,49 @@ def get_face_embedding(document_image_path: str) -> Tuple[np.ndarray, IdentityLi
     detector, recognizer = get_face_engines()
     
     h, w = doc_img.shape[:2]
+    max_dim = 800
+    if max(h, w) > max_dim:
+        scale = max_dim / max(h, w)
+        proc_img = cv2.resize(doc_img, (int(w * scale), int(h * scale)))
+        h, w = proc_img.shape[:2]
+    else:
+        proc_img = doc_img.copy()
+        
     detector.setInputSize((w, h))
     
-    _, faces = detector.detect(doc_img)
+    _, faces = detector.detect(proc_img)
     
     if faces is None or len(faces) == 0:
         return None, IdentityLinkStatus.NO_FACE, "No face detected in document."
         
     if len(faces) > 1:
-        return None, IdentityLinkStatus.ERROR, "Multiple faces detected in document."
+        # Robust extraction logic - pick valid size, then largest
+        sorted_faces = sorted(list(faces), key=lambda f: f[2] * f[3], reverse=True)
+        valid_face = None
+        for f in sorted_faces:
+            if f[2] < 30 or f[3] < 30:
+                continue
+            valid_face = f
+            break
+        if valid_face is None:
+            valid_face = sorted_faces[0]
+        faces = [valid_face]
         
     face = faces[0]
     box_w, box_h = face[2], face[3]
-    if box_w < 40 or box_h < 40:
+    if box_w < 30 or box_h < 30:
         return None, IdentityLinkStatus.NO_FACE, "Detected face is too small."
         
     x, y = max(0, int(face[0])), max(0, int(face[1]))
     w_box, h_box = int(box_w), int(box_h)
-    face_roi = doc_img[y:min(h, y+h_box), x:min(w, x+w_box)]
+    face_roi = proc_img[y:min(h, y+h_box), x:min(w, x+w_box)]
     if face_roi.size > 0:
         gray_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
         variance = cv2.Laplacian(gray_roi, cv2.CV_64F).var()
-        if variance < 10.0:
+        if variance < 5.0:
             return None, IdentityLinkStatus.NO_FACE, "Detected face is too blurry."
             
-    aligned_doc_face = recognizer.alignCrop(doc_img, face)
+    aligned_doc_face = recognizer.alignCrop(proc_img, face)
     doc_embedding = recognizer.feature(aligned_doc_face)
     
     return doc_embedding, None, ""

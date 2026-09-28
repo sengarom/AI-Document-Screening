@@ -5,10 +5,14 @@ from app.schemas.ocr import OCRResponse
 from app.schemas.validation import ValidationResponse
 from app.schemas.tampering import TamperingResponse
 from app.schemas.face import FaceVerificationResponse
+from app.schemas.identity import IdentityLinkResponse
 from app.schemas.risk import RiskScoreResponse, RiskLevel
 
 class ScreeningStatus(str, Enum):
     CLEAR = "clear"
+    REQUIRE_REVIEW = "require_review"
+    REJECTED = "rejected"
+    # Legacy support
     REVIEW = "review"
     HIGH_RISK = "high_risk"
 
@@ -38,11 +42,14 @@ class ScreeningReportRequest(BaseModel):
     validation_result: ValidationResponse
     tampering_result: TamperingResponse
     face_result: Optional[FaceVerificationResponse] = None
+    identity_link_result: Optional[IdentityLinkResponse] = None
     risk_result: RiskScoreResponse
 
 class ScreeningReportResponse(BaseModel):
     document_id: str
     overall_status: ScreeningStatus
+    decision: ScreeningStatus = Field(default=ScreeningStatus.REQUIRE_REVIEW, description="Final deterministic decision")
+    decision_reason: str = Field(default="", description="Human readable reason for the decision")
     risk_score: int
     risk_level: RiskLevel
     document_information: DocumentInfo

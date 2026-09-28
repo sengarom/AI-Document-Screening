@@ -1,6 +1,8 @@
 from app.schemas.risk import RiskScoreRequest, RiskScoreResponse, RiskLevel, RiskFactor
 from app.schemas.face import FaceVerificationStatus
-from app.services.risk.scoring_rules import get_risk_level, score_validation, score_tampering, score_face
+from app.schemas.validation import ValidationStatus
+from app.schemas.identity import IdentityLinkStatus
+from app.services.risk.scoring_rules import get_risk_level, score_validation, score_tampering, score_face, score_identity_link
 
 def calculate_risk(request: RiskScoreRequest) -> RiskScoreResponse:
     use_face = False
@@ -16,6 +18,7 @@ def calculate_risk(request: RiskScoreRequest) -> RiskScoreResponse:
     val_max = 40 if use_face else 50
     tamp_max = 40 if use_face else 50
     face_max = 20 if use_face else 0
+    link_max = 20
     
     total_score = 0
     all_factors = []
@@ -43,6 +46,39 @@ def calculate_risk(request: RiskScoreRequest) -> RiskScoreResponse:
             message=msg
         ))
         
+    if request.identity_link_result:
+        link_score, link_factors = score_identity_link(request.identity_link_result, link_max)
+        total_score += link_score
+        all_factors.extend(link_factors)
+        
+    # --- ENFORCE SEVERITY FLOORS ---
+    floor = 0
+    
+    # Validation Floors
+    if request.validation_result.status == ValidationStatus.FAILED:
+        floor = max(floor, 50)
+        
+    # Tampering Floors
+    if request.tampering_result.overall_status.value.upper() == 'REJECTED' or request.tampering_result.tampering_score > 0.8:
+        floor = max(floor, 75)
+    elif request.tampering_result.tampering_score > 0.4:
+        floor = max(floor, 70)
+        
+    # Face Floors
+    if request.face_result:
+        if request.face_result.status == FaceVerificationStatus.NO_MATCH:
+            floor = max(floor, 60)
+        elif request.face_result.status in [FaceVerificationStatus.NO_FACE_DOCUMENT, FaceVerificationStatus.NO_FACE_REFERENCE, FaceVerificationStatus.MULTIPLE_FACES_DOCUMENT, FaceVerificationStatus.MULTIPLE_FACES_REFERENCE, FaceVerificationStatus.QUALITY_FAILURE]:
+            floor = max(floor, 40)
+            
+    # Identity Link Floors
+    if request.identity_link_result:
+        if request.identity_link_result.status == IdentityLinkStatus.MULTIPLE_POTENTIAL_MATCHES:
+            floor = max(floor, 75)
+        elif request.identity_link_result.status == IdentityLinkStatus.POTENTIAL_MATCH:
+            floor = max(floor, 40)
+            
+    total_score = max(total_score, floor)
     total_score = max(0, min(100, total_score))
     
     return RiskScoreResponse(

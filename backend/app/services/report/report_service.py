@@ -11,21 +11,67 @@ from app.schemas.risk import RiskLevel
 from app.schemas.validation import ValidationStatus
 from app.schemas.tampering import TamperingStatus
 from app.schemas.face import FaceVerificationStatus
+from app.schemas.identity import IdentityLinkStatus
 
 def generate_screening_report(document_id: str, request: ScreeningReportRequest, document_type: str = "PASSPORT") -> ScreeningReportResponse:
     start_time = time.time()
     
-    # Map Risk Level to Screening Status
-    if request.risk_result.risk_level == RiskLevel.LOW:
-        overall_status = ScreeningStatus.CLEAR
+    # 1. Deterministic Decision Engine
+    decision = ScreeningStatus.CLEAR
+    decision_reason = "Identity verification completed successfully. No significant anomalies were detected."
+    
+    # Start with base risk level
+    if request.risk_result.risk_level == RiskLevel.CRITICAL:
+        decision = ScreeningStatus.REJECTED
+        decision_reason = "Screening rejected due to multiple high-severity verification or document integrity signals."
     elif request.risk_result.risk_level in (RiskLevel.MEDIUM, RiskLevel.HIGH):
-        overall_status = ScreeningStatus.REVIEW
-    else:  # CRITICAL
-        overall_status = ScreeningStatus.HIGH_RISK
+        decision = ScreeningStatus.REQUIRE_REVIEW
+        decision_reason = "Manual review required. One or more verification signals could not establish sufficient confidence."
+        
+    # Apply strict safety overrides (even if risk score is low)
+    
+    # Face overrides
+    if request.face_result:
+        if request.face_result.status == FaceVerificationStatus.NO_MATCH:
+            if decision != ScreeningStatus.REJECTED:
+                decision = ScreeningStatus.REQUIRE_REVIEW
+                decision_reason = "Face verification failed; manual identity review required."
+        elif request.face_result.status in [
+            FaceVerificationStatus.NO_FACE_DOCUMENT, 
+            FaceVerificationStatus.NO_FACE_REFERENCE,
+            FaceVerificationStatus.MULTIPLE_FACES_DOCUMENT, 
+            FaceVerificationStatus.MULTIPLE_FACES_REFERENCE, 
+            FaceVerificationStatus.QUALITY_FAILURE,
+            FaceVerificationStatus.ERROR
+        ]:
+            if decision == ScreeningStatus.CLEAR:
+                decision = ScreeningStatus.REQUIRE_REVIEW
+                decision_reason = "Manual review required. Face verification was inconclusive or unavailable."
+                
+    # Validation overrides
+    if request.validation_result.status == ValidationStatus.FAILED:
+        if decision == ScreeningStatus.CLEAR:
+            decision = ScreeningStatus.REQUIRE_REVIEW
+            decision_reason = "Document validation failed; manual review required."
+            
+    # Tampering overrides
+    if request.tampering_result.overall_status.value.upper() == 'REJECTED':
+        decision = ScreeningStatus.REJECTED
+        decision_reason = "Screening rejected due to critical tampering evidence."
+        
+    # Identity Link overrides
+    if request.identity_link_result:
+        if request.identity_link_result.status == IdentityLinkStatus.MULTIPLE_POTENTIAL_MATCHES:
+            decision = ScreeningStatus.REJECTED
+            decision_reason = "Screening rejected due to multiple potential identity links in historical records."
+        elif request.identity_link_result.status == IdentityLinkStatus.POTENTIAL_MATCH:
+            if decision == ScreeningStatus.CLEAR:
+                decision = ScreeningStatus.REQUIRE_REVIEW
+                decision_reason = "Potential identity link detected; manual review required."
 
     findings = []
     
-    # 1. Validation Findings
+    # Validation Findings
     if request.validation_result.status == ValidationStatus.PASSED:
         findings.append(HumanReadableFinding(
             category="Validation",
@@ -43,7 +89,7 @@ def generate_screening_report(document_id: str, request: ScreeningReportRequest,
             details=details
         ))
 
-    # 2. Tampering Findings
+    # Tampering Findings
     t_status = request.tampering_result.overall_status.value.capitalize()
     t_sev = request.tampering_result.severity
     findings.append(HumanReadableFinding(
@@ -53,7 +99,7 @@ def generate_screening_report(document_id: str, request: ScreeningReportRequest,
         details=[f"{k}: {v.explanation}" for k, v in request.tampering_result.signals.items()]
     ))
 
-    # 3. Face Verification Findings
+    # Face Verification Findings
     if request.face_result is None:
         findings.append(HumanReadableFinding(
             category="Face Verification",
@@ -70,8 +116,17 @@ def generate_screening_report(document_id: str, request: ScreeningReportRequest,
             summary=f_summary,
             details=[]
         ))
+        
+    # Identity Link Findings
+    if request.identity_link_result:
+        findings.append(HumanReadableFinding(
+            category="Identity Link",
+            status=request.identity_link_result.status.value.capitalize().replace("_", " "),
+            summary=request.identity_link_result.message,
+            details=[]
+        ))
 
-    # 4. Risk Findings
+    # Risk Findings
     r_details = [f"{f.category} ({f.signal}): {f.message}" for f in request.risk_result.factors]
     findings.append(HumanReadableFinding(
         category="Risk",
@@ -94,7 +149,6 @@ def generate_screening_report(document_id: str, request: ScreeningReportRequest,
         doc_info.date_of_birth = fields.date_of_birth
         doc_info.fathers_name = fields.fathers_name
     elif document_type == "AADHAAR":
-        # Mask the first 8 digits in the report
         if fields.aadhaar_number and len(fields.aadhaar_number) == 12:
             doc_info.document_number = f"XXXX XXXX {fields.aadhaar_number[8:]}"
         else:
@@ -102,7 +156,6 @@ def generate_screening_report(document_id: str, request: ScreeningReportRequest,
         doc_info.date_of_birth = fields.date_of_birth or fields.year_of_birth
         doc_info.gender = fields.gender
     else:
-        # Default PASSPORT/VISA
         doc_info.name = fields.name or (mrz.name if mrz else None)
         doc_info.document_number = fields.passport_number or (mrz.passport_number if mrz else None)
         doc_info.nationality = fields.nationality or (mrz.nationality if mrz else None)
@@ -116,7 +169,9 @@ def generate_screening_report(document_id: str, request: ScreeningReportRequest,
     
     return ScreeningReportResponse(
         document_id=request.ocr_result.document_id,
-        overall_status=overall_status,
+        overall_status=decision, # Map directly for legacy support if needed, but we output decision too
+        decision=decision,
+        decision_reason=decision_reason,
         risk_score=request.risk_result.risk_score,
         risk_level=request.risk_result.risk_level,
         document_information=doc_info,

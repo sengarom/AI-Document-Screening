@@ -4,6 +4,7 @@ from enum import Enum
 from app.schemas.validation import ValidationResponse
 from app.schemas.tampering import TamperingResponse
 from app.schemas.face import FaceVerificationResponse
+from app.schemas.identity import IdentityLinkResponse
 
 class RiskLevel(str, Enum):
     LOW = 'LOW'
@@ -21,6 +22,7 @@ class RiskScoreRequest(BaseModel):
     validation_result: ValidationResponse
     tampering_result: TamperingResponse
     face_result: Optional[FaceVerificationResponse] = None
+    identity_link_result: Optional[IdentityLinkResponse] = None
 
 class RiskScoreResponse(BaseModel):
     document_id: str

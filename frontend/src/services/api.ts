@@ -102,9 +102,20 @@ export const apiService = {
     const face = payloads.face_result;
     const risk = payloads.risk_result;
     
-    let uiStatus: 'CLEAR' | 'REVIEW REQUIRED' | 'HIGH RISK' = 'REVIEW REQUIRED';
-    if (backendReport.overall_status === 'clear') uiStatus = 'CLEAR';
-    if (backendReport.overall_status === 'high_risk') uiStatus = 'HIGH RISK';
+    let uiStatus: 'CLEAR' | 'REQUIRE REVIEW' | 'REJECTED' | 'REVIEW REQUIRED' | 'HIGH RISK' = 'REQUIRE REVIEW';
+    
+    // Support new backend deterministic decision
+    if (backendReport.decision) {
+        if (backendReport.decision === 'clear') uiStatus = 'CLEAR';
+        else if (backendReport.decision === 'require_review') uiStatus = 'REQUIRE REVIEW';
+        else if (backendReport.decision === 'rejected') uiStatus = 'REJECTED';
+    } else {
+        if (backendReport.overall_status === 'clear') uiStatus = 'CLEAR';
+        if (backendReport.overall_status === 'high_risk') uiStatus = 'HIGH RISK';
+    }
+    
+    const decision_reason = backendReport.decision_reason || '';
+
 
     // MRZ / Validation Checks Mapping
     const hasPassedCheck = (checkName: string) => {
@@ -134,7 +145,7 @@ export const apiService = {
     };
 
     const visualMrzConsistency = evaluateChecks(['visual_mrz_passport_number_match', 'visual_mrz_dob_match']);
-    const datesValid = evaluateChecks(['date_of_birth_logic', 'issue_date_logic', 'expiry_date_logic']);
+    const datesValid = evaluateChecks(['date_of_birth_logic', 'issue_date_logic', 'expiry_date_logic', 'date_of_birth']);
     
     let ocrConf = 0;
     if (ocr.detections && ocr.detections.length > 0) {
@@ -183,6 +194,7 @@ export const apiService = {
       date: backendReport.timestamp,
       documentType: backendReport.document_information?.document_type || "Unknown Document",
       status: uiStatus,
+      decision_reason: decision_reason,
       ocr: {
         confidence: Math.round(ocrConf * 100),
         fieldsDetected: uiExtracted.length,
@@ -194,7 +206,7 @@ export const apiService = {
         checks: {
           requiredFieldsDetected: val.valid, // Simplified for UI
           datesValid: datesValid,
-          documentNumberValid: hasPassedCheck('passport_number_format'),
+          documentNumberValid: hasPassedCheck('passport_number_format') || hasPassedCheck('aadhaar_number_format') || hasPassedCheck('pan_number_format'),
           mrzValid: mrzValid,
           visualMrzConsistency: visualMrzConsistency
         }
@@ -210,10 +222,10 @@ export const apiService = {
         anomalies: anomalies
       },
       face: {
-        faceDetected: face ? face.face_detected : false,
-        singleFaceDetected: face ? face.single_face_detected : false,
-        matchScore: face && face.match_score ? Math.round(face.match_score * 100) : 0,
-        isMatch: face ? face.is_match : false,
+        faceDetected: face ? face.status !== 'no_face_document' && face.status !== 'no_face_reference' : false,
+        singleFaceDetected: face ? face.status !== 'multiple_faces_document' && face.status !== 'multiple_faces_reference' : false,
+        matchScore: face && face.similarity_score !== undefined ? Math.max(0, Math.round(face.similarity_score * 100)) : 0,
+        isMatch: face ? face.verified : false,
         status: face ? face.status : 'NOT_PERFORMED'
       },
       risk: {

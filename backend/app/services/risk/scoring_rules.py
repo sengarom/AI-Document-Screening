@@ -3,6 +3,7 @@ from app.schemas.risk import RiskFactor
 from app.schemas.validation import ValidationResponse, ValidationStatus
 from app.schemas.tampering import TamperingResponse, TamperingStatus
 from app.schemas.face import FaceVerificationResponse, FaceVerificationStatus
+from app.schemas.identity import IdentityLinkResponse, IdentityLinkStatus
 
 def get_risk_level(score: int) -> str:
     if score < 25: return 'LOW'
@@ -147,6 +148,30 @@ def score_face(face_result: FaceVerificationResponse, max_points: int) -> Tuple[
 
     factors = [RiskFactor(
         category='Face Verification',
+        signal=signal,
+        contribution=penalty,
+        message=message
+    )]
+    
+    return penalty, factors
+
+def score_identity_link(link_result: IdentityLinkResponse, max_points: int) -> Tuple[int, List[RiskFactor]]:
+    penalty = 0
+    signal = link_result.status.value.upper()
+    message = 'Identity link analysis status.'
+    
+    if link_result.status == IdentityLinkStatus.MULTIPLE_POTENTIAL_MATCHES:
+        penalty = max_points
+        message = 'Multiple potential identity links detected in historical records.'
+    elif link_result.status == IdentityLinkStatus.POTENTIAL_MATCH:
+        penalty = int(max_points / 2)
+        message = 'A potential identity link was detected in historical records.'
+    elif link_result.status in [IdentityLinkStatus.NO_MATCH, IdentityLinkStatus.NO_PREVIOUS_IDENTITIES]:
+        penalty = 0
+        message = 'No potential identity links found.'
+    
+    factors = [RiskFactor(
+        category='Identity Links',
         signal=signal,
         contribution=penalty,
         message=message

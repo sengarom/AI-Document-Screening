@@ -88,7 +88,7 @@ def test_report_review_medium():
     ]
     
     resp = generate_screening_report("doc1", req)
-    assert resp.overall_status == ScreeningStatus.REVIEW
+    assert resp.overall_status == ScreeningStatus.REQUIRE_REVIEW
     
     val_finding = next(f for f in resp.findings if f.category == "Validation")
     assert val_finding.status == "Warning"
@@ -100,7 +100,7 @@ def test_report_review_high():
     req.risk_result.risk_level = RiskLevel.HIGH
     req.risk_result.risk_score = 60
     resp = generate_screening_report("doc1", req)
-    assert resp.overall_status == ScreeningStatus.REVIEW
+    assert resp.overall_status == ScreeningStatus.REQUIRE_REVIEW
 
 def test_report_high_risk_critical():
     req = create_base_request()
@@ -113,7 +113,7 @@ def test_report_high_risk_critical():
     req.face_result.message = "Did not match"
     
     resp = generate_screening_report("doc1", req)
-    assert resp.overall_status == ScreeningStatus.HIGH_RISK
+    assert resp.overall_status == ScreeningStatus.REJECTED
     
     face_finding = next(f for f in resp.findings if f.category == "Face Verification")
     assert face_finding.status == "No_match"

@@ -49,7 +49,7 @@ export default function ResultsPage() {
     if (!report.validation.isValid) {
       flags.push("Document validation failed or returned anomalies.");
     }
-    if (!report.documentType.includes('PAN') && !report.documentType.includes('Aadhaar') && !report.mrz.isValid) {
+    if (report.documentType.toUpperCase() !== 'PAN' && report.documentType.toUpperCase() !== 'AADHAAR' && !report.mrz.isValid) {
       flags.push("MRZ checksum validation failed or data was missing.");
     }
     if (!report.tampering.isAuthentic) {
@@ -216,24 +216,55 @@ export default function ResultsPage() {
                 {report.validation.isValid ? <Badge variant="success">PASS</Badge> : <Badge variant="destructive">FAIL</Badge>}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Logically valid dates</span>
-                {report.validation.checks.datesValid === 'NOT_ASSESSED' ? <Minus className="w-4 h-4 text-muted-foreground" /> : report.validation.checks.datesValid ? <Check className="w-4 h-4 text-success"/> : <X className="w-4 h-4 text-destructive"/>}
-              </div>
-              {!report.documentType.includes('PAN') && !report.documentType.includes('Aadhaar') && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">MRZ checksums</span>
-                    {report.mrz.checksumPassed ? <Check className="w-4 h-4 text-success"/> : <X className="w-4 h-4 text-destructive"/>}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Visual & MRZ consistency</span>
-                    {report.validation.checks.visualMrzConsistency === 'NOT_ASSESSED' ? <Minus className="w-4 h-4 text-muted-foreground" /> : report.validation.checks.visualMrzConsistency ? <Check className="w-4 h-4 text-success"/> : <X className="w-4 h-4 text-destructive"/>}
-                  </div>
-                </>
-              )}
-            </CardContent>
+            <CardContent className="p-4 space-y-4">                {report.documentType.toUpperCase() === 'AADHAAR' && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Required identity fields</span>
+                      {report.validation.checks.requiredFieldsDetected ? <Check className="w-4 h-4 text-success"/> : <X className="w-4 h-4 text-destructive"/>}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Aadhaar number format</span>
+                      {report.validation.checks.documentNumberValid ? <Check className="w-4 h-4 text-success"/> : <X className="w-4 h-4 text-destructive"/>}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Date/field consistency</span>
+                      {report.validation.checks.datesValid === 'NOT_ASSESSED' ? <Minus className="w-4 h-4 text-muted-foreground" /> : report.validation.checks.datesValid ? <Check className="w-4 h-4 text-success"/> : <X className="w-4 h-4 text-destructive"/>}
+                    </div>
+                  </>
+                )}
+                {report.documentType.toUpperCase() === 'PAN' && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Required identity fields</span>
+                      {report.validation.checks.requiredFieldsDetected ? <Check className="w-4 h-4 text-success"/> : <X className="w-4 h-4 text-destructive"/>}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">PAN format</span>
+                      {report.validation.checks.documentNumberValid ? <Check className="w-4 h-4 text-success"/> : <X className="w-4 h-4 text-destructive"/>}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Date/field consistency</span>
+                      {report.validation.checks.datesValid === 'NOT_ASSESSED' ? <Minus className="w-4 h-4 text-muted-foreground" /> : report.validation.checks.datesValid ? <Check className="w-4 h-4 text-success"/> : <X className="w-4 h-4 text-destructive"/>}
+                    </div>
+                  </>
+                )}
+                {report.documentType.toUpperCase() !== 'AADHAAR' && report.documentType.toUpperCase() !== 'PAN' && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Logically valid dates</span>
+                      {report.validation.checks.datesValid === 'NOT_ASSESSED' ? <Minus className="w-4 h-4 text-muted-foreground" /> : report.validation.checks.datesValid ? <Check className="w-4 h-4 text-success"/> : <X className="w-4 h-4 text-destructive"/>}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">MRZ checksums</span>
+                      {report.mrz.checksumPassed ? <Check className="w-4 h-4 text-success"/> : <X className="w-4 h-4 text-destructive"/>}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Visual & MRZ consistency</span>
+                      {report.validation.checks.visualMrzConsistency === 'NOT_ASSESSED' ? <Minus className="w-4 h-4 text-muted-foreground" /> : report.validation.checks.visualMrzConsistency ? <Check className="w-4 h-4 text-success"/> : <X className="w-4 h-4 text-destructive"/>}
+                    </div>
+                  </>
+                )}
+              </CardContent>
           </Card>
 
           {/* 8. TAMPERING */}

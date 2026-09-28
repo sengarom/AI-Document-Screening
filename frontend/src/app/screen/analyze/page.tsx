@@ -128,8 +128,12 @@ function AnalyzeContent() {
         // Step 5: Identity Link Analysis
         if (!isMounted) return;
         setCurrentStepIndex(5);
-        // Pre-fetch it to ensure it's ready for results page, or just visual delay
-        await new Promise(r => setTimeout(r, 800));
+        let identity_link_result = null;
+        try {
+            identity_link_result = await apiService.getIdentityLinks(documentId);
+        } catch (e) {
+            console.warn('Identity links failed', e);
+        }
 
         // Step 6: Risk Scoring
         if (!isMounted) return;
@@ -137,7 +141,8 @@ function AnalyzeContent() {
         const riskPayload = {
           validation_result,
           tampering_result,
-          face_result
+          face_result,
+          identity_link_result
         };
         const risk_result = await apiService.calculateRisk(documentId, riskPayload);
 
@@ -148,6 +153,7 @@ function AnalyzeContent() {
           validation_result,
           tampering_result,
           face_result,
+          identity_link_result,
           risk_result
         };
         const backendReport = await apiService.getScreeningReport(documentId, reportPayload);
